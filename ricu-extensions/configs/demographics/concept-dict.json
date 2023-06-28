@@ -25,7 +25,7 @@
       "miiv": [
         {
           "table": "admissions",
-          "val_var": "race",
+          "val_var": "ethnicity",
           "callback": "apply_map(c(`AMERICAN INDIAN/ALASKA NATIVE` = 'other', ASIAN = 'asian', `ASIAN - ASIAN INDIAN` = 'asian', `ASIAN - CHINESE` = 'asian', `ASIAN - KOREAN` = 'asian', `ASIAN - SOUTH EAST ASIAN` = 'asian', `BLACK/AFRICAN` = 'black', `BLACK/AFRICAN AMERICAN` = 'black', `BLACK/CAPE VERDEAN` = 'black', `BLACK/CARIBBEAN ISLAND` = 'black', `HISPANIC OR LATINO` = 'other', `HISPANIC/LATINO - CENTRAL AMERICAN` = 'other', `HISPANIC/LATINO - COLUMBIAN` = 'other', `HISPANIC/LATINO - CUBAN` = 'other', `HISPANIC/LATINO - DOMINICAN` = 'other', `HISPANIC/LATINO - GUATEMALAN` = 'other', `HISPANIC/LATINO - HONDURAN` = 'other', `HISPANIC/LATINO - MEXICAN` = 'other', `HISPANIC/LATINO - PUERTO RICAN` = 'other', `HISPANIC/LATINO - SALVADORAN` = 'other', `MULTIPLE RACE/ETHNICITY NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER` = 'other', `OTHER` = 'other', `PATIENT DECLINED TO ANSWER` = NA, `PORTUGUESE` = 'white', `SOUTH AMERICAN` = 'other', `UNABLE TO OBTAIN` = NA, `UNKNOWN` = NA, `WHITE` = 'white', `WHITE - BRAZILIAN` = 'white', `WHITE - EASTERN EUROPEAN` = 'white', `WHITE - OTHER EUROPEAN` = 'white', `WHITE - RUSSIAN` = 'white'))",
           "class": "col_itm"
         }
