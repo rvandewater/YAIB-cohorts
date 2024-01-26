@@ -68,6 +68,12 @@ Once you have cloned the repo, all cohorts can be created directly from within R
 - Python: [README.md](Python/README.md)  
 
 Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally to those published in the benchmarking paper. 
+## Clairvoyance Conversion
+To output the cohorts in the Clairvoyance (https://github.com/vanderschaarlab/clairvoyance) format, you can use the following utils.py function
+```
+output_clairvoyance(data_dir, save_dir, task_type="static")
+```
+You can specify the size and the type of task ("static": i.e., one outcome label per stay_id (mortality, KF) or "dynamic": (Sepsis, AKI, LOS), i.e., one outcome label per time step) and the train/test split in the `make_train_test` function.
 
 ## Acknowledgements
 

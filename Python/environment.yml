@@ -8,5 +8,6 @@ dependencies:
   - numpy
   - pyyaml
   - pyarrow
+  - scikit-learn
   - pip:
     - rpy2

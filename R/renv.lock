@@ -386,6 +386,48 @@
       ],
       "Hash": "b5047343b3825f37ad9d3b5d89aa1078"
     },
+    "renv": {
+      "Package": "renv",
+      "Version": "0.17.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "utils"
+      ],
+      "Hash": "4543b8cd233ae25c6aba8548be9e747e"
+    },
+    "ricu": {
+      "Package": "ricu",
+      "Version": "0.5.5",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "ricu-package",
+      "RemoteUsername": "prockenschaub",
+      "RemoteRef": "monkeypatch",
+      "RemoteSha": "b75882daab2c3f170f31a6df78163aaf93314b0d",
+      "Requirements": [
+        "R",
+        "assertthat",
+        "backports",
+        "cli",
+        "curl",
+        "data.table",
+        "fansi",
+        "fst",
+        "jsonlite",
+        "methods",
+        "openssl",
+        "prt",
+        "readr",
+        "rlang",
+        "stats",
+        "tibble",
+        "utils",
+        "vctrs"
+      ],
+      "Hash": "2681cdea2f2f3446691071ea30f745b5"
+    },
     "rlang": {
       "Package": "rlang",
       "Version": "1.1.0",
