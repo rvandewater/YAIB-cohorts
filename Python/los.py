@@ -123,8 +123,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', default='mimic_demo', help='name of datasource',
                         choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
-    parser.add_argument('--out_dir', default='../data/los', help='path where to store extracted data',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
+    parser.add_argument('--out_dir', default='../data/los', help='path where to store extracted data')
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_los_task(args)

@@ -405,7 +405,7 @@
       "RemoteRepo": "ricu-package",
       "RemoteUsername": "prockenschaub",
       "RemoteRef": "monkeypatch",
-      "RemoteSha": "b75882daab2c3f170f31a6df78163aaf93314b0d",
+      "RemoteSha": "caee690352e76173ec0532a646d7310be7e1632b",
       "Requirements": [
         "R",
         "assertthat",

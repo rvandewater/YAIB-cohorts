@@ -51,6 +51,8 @@ def make_grid_mapper(grid: pd.DataFrame, step_size: int = 1, match_time: bool = 
     grid['time'] = grid.apply(lambda row: list(range(int(row['start']), int(row['end'])+1, step_size)), axis=1)
     grid = grid.drop(['start', 'end'], axis=1)
     grid = grid.explode('time')
+    grid['time'] = grid['time'].astype(float)
+    grid = grid[~np.isnan(grid['time'])]
     grid['time'] = grid['time'].astype(int)
 
     def map_to_grid(x: pd.DataFrame) -> pd.DataFrame:
@@ -100,7 +102,10 @@ def longest_rle(x: pd.Series, value: bool | int | str = False) -> int:
         run size
     """
     lengths = (x != x.shift()).astype(int).cumsum()
-    return lengths[x == value].value_counts().max()
+    max_rle = lengths[x == value].value_counts().max()
+    if np.isnan(max_rle):
+        max_rle = 0
+    return max_rle
 
 def make_prevalence_calculator(var: str) -> Callable:
     """Calculate the prevalence of a condition by hospital (e.g., sepsis)
