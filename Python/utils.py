@@ -43,6 +43,8 @@ def output_clairvoyance(data_dir, save_dir, task_type="static"):
         value["static"].to_csv(os.path.join(save_dir, f'static_{key}_data.csv'), index=False)
         value["dynamic"].to_csv(os.path.join(save_dir, f'temporal_{key}_data.csv'), index=False)
 
+def meds_etl(data_dir, save_dir):
+
 
 def make_train_test(
         data: dict[pd.DataFrame],
