@@ -1,5 +1,7 @@
 source("renv/activate.R")
 # install.packages("mimic.demo", repos="https://eth-mds.github.io/physionet-demo")
+install.packages("mimic.demo", repos="https://eth-mds.github.io/physionet-demo")
+install.packages("eicu.demo", repos="https://eth-mds.github.io/physionet-demo")
 
 Sys.setenv(RICU_DATA_PATH = "/usr/local/lib/R/site-library/mimic.demo")
 if(require("ricu", quietly = TRUE)) {
