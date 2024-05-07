@@ -1,7 +1,9 @@
 name: yaib-cohorts2
 channels:
   - defaults
+  - r
 dependencies:
+  - r
   - python=3.10
   - notebook
   - pandas
