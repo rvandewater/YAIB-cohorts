@@ -1,9 +1,11 @@
 import os
+from datetime import datetime
+
 import pandas as pd
 import pyarrow.parquet as pq
 from pathlib import Path
 from sklearn.model_selection import StratifiedShuffleSplit, ShuffleSplit
-
+from meds_etl.flat import convert_flat_to_meds, convert_meds_to_flat
 
 def output_clairvoyance(data_dir, save_dir, task_type="static"):
     """""Output in clairvoyance format including train test splitting
@@ -43,8 +45,53 @@ def output_clairvoyance(data_dir, save_dir, task_type="static"):
         value["static"].to_csv(os.path.join(save_dir, f'static_{key}_data.csv'), index=False)
         value["dynamic"].to_csv(os.path.join(save_dir, f'temporal_{key}_data.csv'), index=False)
 
-def meds_etl(data_dir, save_dir):
+def meds_etl_test(data_dir, save_dir, base_time = datetime(2000,1,1,0)):
+    """"
+    Test roundtrip from YAIB format -> MEDS_flat -> MEDS -> MEDS_flat
+    """
 
+    # Dynamic data
+    dyn = pq.read_table(os.path.join(data_dir, 'dyn.parquet')).to_pandas()
+    # MEDS does not work well with timedelta, so we need to convert to absolute time
+    dyn["time"] = dyn["time"] + base_time
+    # print(dyn.head())
+    dyn = dyn.melt(id_vars=['stay_id', 'time'])
+    dyn = dyn.dropna()
+    # print(dyn.head())
+    dyn.rename(columns={"stay_id": "patient_id", "variable":"code", "value":"numeric_value"}, inplace=True)
+
+    # Static data
+    sta = pq.read_table(os.path.join(data_dir, 'sta.parquet')).to_pandas()
+    # print(sta.head())
+    sta = sta.melt(id_vars=['stay_id'])
+    # print(sta.head())
+    sta.rename(columns={"stay_id": "patient_id", "variable":"code", "value":"numeric_value"}, inplace=True)
+    # sta["numeric_value"] = sta["numeric_value"].replace({"Male":0, "Female":1})
+    sta["text_value"] = None
+    sta.loc[sta["numeric_value"]=="Male", "text_value"]="Male"
+    sta.loc[sta["numeric_value"]=="Female", "text_value"]="Female"
+    sta["numeric_value"] = sta["numeric_value"].replace({"Male":0, "Female":1})
+    sta["numeric_value"] = sta["numeric_value"].astype(float)
+    sta["time"] = base_time
+
+    # Create folder
+    Path(os.path.join(save_dir, 'flat_data')).mkdir(exist_ok=True)
+    dyn.to_parquet(os.path.join(save_dir, 'flat_data/dyn.parquet'))
+    sta.to_parquet(os.path.join(save_dir, 'flat_data/sta.parquet'))
+    # print(dyn)
+    # concatenated = pd.concat([dyn, sta])
+    # print(concatenated)
+    # concatenated.to_parquet(os.path.join(save_dir, 'flat_data/concatenated.parquet'))
+    if not os.path.exists(os.path.join(save_dir, 'data')):
+        convert_flat_to_meds(source_flat_path=save_dir, target_meds_path=save_dir, num_shards=1)
+    if not os.path.exists(os.path.join(save_dir, 'flat_converted_back')):
+        convert_meds_to_flat(source_meds_path=save_dir, target_flat_path=os.path.join(save_dir,"flat_converted_back"), format="parquet")
+
+def convert_meds_to_yaib(data_dir, save_dir, base_time = datetime(2000,1,1,0)):
+    meds = pq.read_table(os.path.join(data_dir, 'dyn.parquet')).to_pandas()
+    meds.pivot(index=['patient_id', 'time'], columns='code', values='numeric_value', inplace=True)
+    meds["time"] = meds["time"] - base_time
+    meds.to_parquet(os.path.join(save_dir, 'dyn.parquet'))
 
 def make_train_test(
         data: dict[pd.DataFrame],
@@ -92,3 +139,5 @@ def make_train_test(
         data_split[split]["dynamic"] = data["dynamic"].merge(split_ids[split], on=id, how="right", sort=True)
         data_split[split]["outcome"] = data["outcome"].merge(split_ids[split], on=id, how="right", sort=True)
     return data_split
+dir = os.path.dirname(__file__)
+meds_etl_test(Path("/mnt/c/Users/Robin/Documents/Git/YAIB-cohorts/data/mortality24/mimic_demo/"), Path("/mnt/c/Users/Robin/Documents/Git/YAIB-cohorts/data/mortality24/mimic_demo/flat_data"))
