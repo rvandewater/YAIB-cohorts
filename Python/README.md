@@ -2,7 +2,19 @@
 
 The following instructions assume that this folder is the current working directory in your Python session. 
 
+### Pre-step: Make sure R is installed with conda
 
+#### Install R
+```bash
+conda install -c conda-forge r-base
+
+```
+#### Install rpy2
+```bash
+
+conda install -c conda-forge rpy2
+
+```
 ### Step 0: Environment and Prerequisites
 
 An `renv` lock file was created to install all necessary package dependencies. To recreate the environment, start a Terminal and run: 
