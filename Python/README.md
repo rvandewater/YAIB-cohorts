@@ -16,6 +16,7 @@ conda install -c conda-forge rpy2
 
 ```
 ### Step 0: Environment and Prerequisites
+Make sure the data source directly is properly specified in .Rprofile.
 
 An `renv` lock file was created to install all necessary package dependencies. To recreate the environment, start a Terminal and run: 
 
