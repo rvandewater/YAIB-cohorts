@@ -15,7 +15,6 @@ conda install -c conda-forge rpy2
 
 ```
 
-If you're encountering issues with the units package or working with R projects managed by renv, refer to this [file](fix_ricu.md)
 
 
 
@@ -33,6 +32,7 @@ An `renv` lock file was created to install all necessary package dependencies. T
 python setup_env.py
 
 ```
+If you're encountering issues with the units package or working with R projects managed by `renv`, refer to this [file](fix_ricu.md)
 
 ### Step 1: Load the datasets into `ricu`
 
