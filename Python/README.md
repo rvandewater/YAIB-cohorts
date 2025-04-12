@@ -11,10 +11,18 @@ conda install -c conda-forge r-base
 ```
 #### Install rpy2
 ```bash
-
 conda install -c conda-forge rpy2
 
 ```
+
+If you're encountering issues with the units package or working with R projects managed by renv, refer to this [file](fix_ricu.md)
+
+
+
+
+
+
+
 ### Step 0: Environment and Prerequisites
 Make sure the data source directly is properly specified in .Rprofile.
 
