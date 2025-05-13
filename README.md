@@ -37,22 +37,20 @@ The following repositories may be relevant as well:
 If you use this code in your research, please cite the following publication:
 
 ```
-@article{vandewaterYetAnotherICUBenchmark2023,
-	title = {Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML},
-	shorttitle = {Yet Another ICU Benchmark},
-	url = {http://arxiv.org/abs/2306.05109},
-	language = {en},
-	urldate = {2023-06-09},
-	publisher = {arXiv},
-	author = {van de Water, Robin and Schmidt, Hendrik and Elbers, Paul and Thoral, Patrick and Arnrich, Bert and Rockenschaub, Patrick},
-	month = jun,
-	year = {2023},
-	note = {arXiv:2306.05109 [cs]},
-	keywords = {Computer Science - Machine Learning},
+@inproceedings{vandewaterYetAnotherICUBenchmark2024,
+  title = {Yet Another ICU Benchmark: A Flexible Multi-Center Framework for Clinical ML},
+  shorttitle = {Yet Another ICU Benchmark},
+  booktitle = {The Twelfth International Conference on Learning Representations},
+  author = {van de Water, Robin and Schmidt, Hendrik Nils Aurel and Elbers, Paul and Thoral, Patrick and Arnrich, Bert and Rockenschaub, Patrick},
+  year = {2024},
+  month = oct,
+  urldate = {2024-02-19},
+  langid = {english},
 }
+
 ```
 
-This paper can also be found on arxiv: https://arxiv.org/pdf/2306.05109.pdf
+This paper can also be found on arxiv [2306.05109](https://arxiv.org/abs/2306.05109)
 
 ## To replicate the cohorts:
 
@@ -62,13 +60,15 @@ Run the following commands to clone this repo:
 git clone https://github.com/rvandewater/YAIB-cohorts.git
 cd YAIB-cohorts
 ```
-Once you have cloned the repo, all cohorts can be created directly from within R or via an interface from python. Instructions for each can be found at: 
+Once you have cloned the repo, all cohorts can be created directly from within R or via an interface from Python. Instructions for each can be found at: 
 
 - R: [README.md](R/README.md)
 - Python: [README.md](Python/README.md)  
 
-Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally to those published in the benchmarking paper. 
+Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally from those published in the benchmarking paper.
+
 ## Clairvoyance Conversion
+
 To output the cohorts in the Clairvoyance (https://github.com/vanderschaarlab/clairvoyance) format, you can use the following utils.py function
 ```
 output_clairvoyance(data_dir, save_dir, task_type="static")
