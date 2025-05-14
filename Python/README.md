@@ -2,6 +2,25 @@
 
 The following instructions assume that this folder is the current working directory in your Python session. 
 
+### Pre-step: Make sure R is installed with conda
+
+#### Install R
+```bash
+conda install -c conda-forge r-base
+
+```
+#### Install rpy2
+```bash
+conda install -c conda-forge rpy2
+
+```
+
+
+
+
+
+
+
 
 ### Step 0: Environment and Prerequisites
 
@@ -12,6 +31,7 @@ An `renv` lock file was created to install all necessary package dependencies. T
 python setup_env.py
 
 ```
+If you're encountering issues with the units package or working with R projects managed by `renv`, refer to this [file](fix_ricu.md)
 
 ### Step 1: Load the datasets into `ricu`
 

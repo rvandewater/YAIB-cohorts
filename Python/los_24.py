@@ -2,20 +2,21 @@ import os
 import argparse
 import pyarrow as pa
 import pyarrow.parquet as pq
+import numpy as np
 
 from src.cohort import Cohort, SelectionCriterion
 from src.steps import (
     InputStep, LoadStep, 
-    AggStep, FilterStep, TransformStep, CustomStep, RenameStep,
-    Pipeline, CombineStep
+    AggStep, FilterStep, TransformStep, CustomStep, DropStep, RenameStep,
+    Pipeline
 )
-from src.ricu import stay_windows
+from src.ricu import stay_windows, hours
 from src.ricu_utils import (
-    stop_window_at, n_obs_per_row, longest_rle, 
-    make_grid_mapper, make_patient_mapper, make_prevalence_calculator, make_outcome_windower
+    stop_window_at, make_grid_mapper, make_patient_mapper,
+    n_obs_per_row, longest_rle
 )
 
-outc_var = "aki" # this is a custom definition of sepsis that differs from that defined by ricu
+outc_var = "los_icu"
 static_vars = ["age", "sex", "height", "weight","ethnic","bmi"]
 dynamic_vars = ["alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir",
                   "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea", "crp", 
@@ -24,24 +25,33 @@ dynamic_vars = ["alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir",
                   "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp", 
                   "temp", "tnt", "urine", "wbc"]
 
-def create_aki_task(args):
-    print('Start creating the AKI task.')
+def create_los_task(args):
+    print('Start creating the length of stay task.')
     print('   Preload variables')
-    load_aki = LoadStep(outc_var, args.src, cache=True)
-    aki = load_aki.perform()
-    
+    load_los = Pipeline('Load and process kidney function')
+    load_los.add_step([
+        LoadStep(outc_var, args.src),
+        TransformStep(outc_var, lambda x: np.floor(x * 24))
+    ])
+    los = load_los.apply()
+
     load_static = LoadStep(static_vars, args.src, cache=True)
     load_dynamic = LoadStep(dynamic_vars, args.src, cache=True)
 
     print('   Define observation times')
-    patients = stay_windows(args.src)
-    patients = stop_window_at(patients, end=24*7)    
+    
+    base_patients = stay_windows(args.src)
+    base_patients = stop_window_at(base_patients, end=24*7)
+
+    patients = stop_window_at(base_patients.copy(), end=24)
+    
+    # patients = stay_windows(args.src)
+    # patients = stop_window_at(patients, end=24*7)  #change end day here
 
     print('   Define exclusion criteria')
-    # General exclusion criteria
     excl1 = SelectionCriterion('Invalid length of stay')
     excl1.add_step([
-        InputStep(patients),
+        InputStep(base_patients),
         FilterStep('end', lambda x: x < 0)
     ])
 
@@ -61,7 +71,7 @@ def create_aki_task(args):
     excl4 = SelectionCriterion('More than 12 hour gap between measurements')
     excl4.add_step([
         load_dynamic, 
-        CustomStep(make_grid_mapper(patients, step_size=1)),
+        CustomStep(make_grid_mapper(base_patients, step_size=1)),
         CustomStep(n_obs_per_row),
         TransformStep('n', lambda x: x > 0), 
         AggStep('stay_id', longest_rle, 'n'),
@@ -75,70 +85,39 @@ def create_aki_task(args):
     ])
 
     # Task-specific exclusion criteria
-    aki_add6 = aki[aki['time'] >= 0].copy()
-    aki_add6['time'] += 6
-    patients = stop_window_at(patients, end=aki_add6)
-
-    get_first_aki = Pipeline("Get AKI patients")
-    get_first_aki.add_step([
-       InputStep(aki), 
-       AggStep('stay_id', 'max')
-    ])
-    load_hospital_id = LoadStep('hospital_id', src=args.src)
-    
-    excl6 = SelectionCriterion('Low AKI prevalence')
+    excl6 = SelectionCriterion('Died within the first 30 hours of ICU admission')
     excl6.add_step([
-        CombineStep(
-            steps=[get_first_aki, load_hospital_id], 
-            func=make_prevalence_calculator(outc_var)
-        ),
-        FilterStep('prevalence', lambda x: x == 0)
+        LoadStep('death_icu', src=args.src, interval=hours(1), cache=True),
+        FilterStep('death_icu', lambda x: x == True),
+        FilterStep('time', lambda x: x < 30)
     ])
 
-    excl7 = SelectionCriterion('AKI onset before 6h in the ICU')
+    excl7 = SelectionCriterion('Length of stay < 30h')
     excl7.add_step([
-        InputStep(aki),
-        AggStep(['stay_id'], 'first'),
-        FilterStep('time', lambda x: x < 6)
+        LoadStep('los_icu', src=args.src, cache=True),
+        FilterStep('los_icu', lambda x: x < 30/24)
     ])
-
-    def cummin_crea(x):
-        x['crea'] = x.groupby('stay_id')['crea'].cummin()
-        return x
-
-    def get_baseline_candidates(x):
-        x = x.copy()
-        x['time_ge_0'] = x['time'] >= 0
-        x['num_in_icu'] = x.groupby('stay_id')['time_ge_0'].cumsum()
-        return x[(x['time'] < 0) | (x['num_in_icu'] == 1)]        
-
-    excl8 = SelectionCriterion('Baseline creatinine > 4')
-    excl8.add_step([
-        LoadStep('crea', src=args.src),
-        CustomStep(cummin_crea),
-        CustomStep(get_baseline_candidates),
-        AggStep(['stay_id'], 'last'),
-        FilterStep('crea', lambda x: x > 4)
-    ])
-
+    
     print('   Select cohort\n')
     cohort = Cohort(patients)
-    cohort.add_criterion(
-        [excl1, excl2, excl3, excl4, excl5, excl6, excl7, excl8] if args.src in ['eicu', 'eicu_demo'] else
-        [excl1, excl2, excl3, excl4, excl5, excl7, excl8] 
-    )
+    cohort.add_criterion([excl1, excl2, excl3, excl4, excl5, excl6, excl7])
     print(cohort.criteria)
     patients, attrition = cohort.select()
     print('\n')
 
     print('   Load and format input data')
+    def calculate_remaining_los(df):
+        df['max_los'] = 7 * 24
+        df["los_icu"] = df['los_icu'] - df['time']
+        df["los_icu"] = df[['los_icu', 'max_los']].min(axis=1)
+        return df.drop('max_los', axis=1)
+
     outc_formatting = Pipeline("Prepare length of stay")
     outc_formatting.add_step([
-        InputStep(aki), 
-        CustomStep(make_grid_mapper(patients)),
-        RenameStep(outc_var, 'label'),
-        CustomStep(make_outcome_windower(6)),
-        TransformStep('label', lambda x: x.astype(int))
+        InputStep(los), 
+        # DropStep('time'),
+        CustomStep(make_patient_mapper(patients)),
+        RenameStep(outc_var, 'label')
     ])
     outc = outc_formatting.apply()
 
@@ -163,10 +142,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', default='mimic_demo', help='name of datasource',
                         choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
-    parser.add_argument('--out_dir', default='../data/aki', help='path where to store extracted data')
+    parser.add_argument('--out_dir', default='../data/los_24', help='path where to store extracted data')
     args = parser.parse_known_args()[0]
 
-    (outc, dyn, sta), attrition = create_aki_task(args)
+    (outc, dyn, sta), attrition = create_los_task(args)
 
     save_dir = os.path.join(args.out_dir, args.src)
     os.makedirs(save_dir, exist_ok=True)
