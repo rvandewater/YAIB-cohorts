@@ -16,7 +16,7 @@ from src.ricu_utils import (
 )
 
 outc_var = "aki" # this is a custom definition of sepsis that differs from that defined by ricu
-static_vars = ["age", "sex", "height", "weight","ethnic","bmi"]
+static_vars = ["age", "sex", "height", "weight"]
 dynamic_vars = ["alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir",
                   "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea", "crp", 
                   "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact",
