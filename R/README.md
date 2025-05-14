@@ -37,7 +37,7 @@ directory:
 
 ```r
 
-Sys.setenv(RICU_DATA_PATH = "/Users/robin/Documents/datasets")
+Sys.setenv(RICU_DATA_PATH = "/path/to/your/ricu/data/folder")
 
 ```
 
