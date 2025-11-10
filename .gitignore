@@ -3,6 +3,4 @@
 .Rhistory
 
 .DS_Store
-R/renv/*
-Python/renv/*
 *.pyc
