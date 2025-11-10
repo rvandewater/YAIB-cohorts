@@ -4,6 +4,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
 
+from src import conf
 from src.cohort import Cohort, SelectionCriterion
 from src.steps import (
     InputStep, LoadStep, 
@@ -123,12 +124,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', default='mimic_demo', help='name of datasource',
                         choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
-    parser.add_argument('--out_dir', default='../data/los', help='path where to store extracted data')
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_los_task(args)
 
-    save_dir = os.path.join(args.out_dir, args.src)
+    save_dir = os.path.join(conf['out_dir'], 'los', args.src)
     os.makedirs(save_dir, exist_ok=True)
     pq.write_table(pa.Table.from_pandas(outc), os.path.join(save_dir, 'outc.parquet'))
     pq.write_table(pa.Table.from_pandas(dyn), os.path.join(save_dir, 'dyn.parquet'))

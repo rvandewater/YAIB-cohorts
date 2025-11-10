@@ -5,10 +5,17 @@ import pandas as pd
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 
+from . import conf
 from .Rutils import as_data_frame, r_to_pandas
 
 # Load ricu
+os.environ["RICU_DATA_PATH"] = conf["ricu_data_path"]
 ricu = importr('ricu')
+
+ro.r['source']('../ricu-extensions/callbacks/callback-icu-mortality.R')
+ro.r['source']('../ricu-extensions/callbacks/callback-kdigo.R')
+ro.r['source']('../ricu-extensions/callbacks/callback-sepsis.R')
+
 
 # ------------------------------------------------------------------------------
 # Port existing and often used ricu functions 
@@ -37,7 +44,7 @@ def dictionary(dir: str = '../ricu-extensions/configs', **kwargs) -> ro.ListVect
     folders = [os.path.join(dir, subdir) for subdir in os.listdir(dir)]
     return ricu.load_dictionary(cfg_dirs=folders, **kwargs)
 
-def concepts(x: str | List[str], dict: ro.ListVector = dictionary()) -> ro.RObject:
+def concepts(x: str | List[str], dict: ro.ListVector | None = None) -> ro.RObject:
     """Get one or more ricu concepts by name
 
     Args:
@@ -47,6 +54,9 @@ def concepts(x: str | List[str], dict: ro.ListVector = dictionary()) -> ro.RObje
     Returns:
         ricu concepts
     """
+    if dict is None: 
+        dict = dictionary()
+
     return dict.rx(ro.StrVector(x))
 
 def stay_windows(src: str, interval: ro.IntVector = hours(1)) -> pd.DataFrame:
