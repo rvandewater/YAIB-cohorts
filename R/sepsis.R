@@ -5,6 +5,7 @@ library(data.table)
 library(vctrs)
 library(yaml)
 
+source(".load_ricu.R")
 source("src/misc.R")
 source("src/steps.R")
 source("src/sequential.R")
@@ -31,12 +32,7 @@ max_len <- hours(7 * 24)  # = 7 days
 
 static_vars <- c("age", "sex", "height", "weight")
 
-dynamic_vars <- c("alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir",
-          "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea", "crp", 
-          "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact",
-          "lymph", "map", "mch", "mchc", "mcv", "methb", "mg", "na", "neut", 
-          "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp", 
-          "temp", "tnt", "urine", "wbc")
+dynamic_vars <- c("alb", "alp")
 
 # cross-sectional vs longitudinal
 predictor_type <- "dynamic" # static / dynamic
@@ -47,7 +43,7 @@ patients <- stay_windows(src, interval = time_unit(freq))
 patients <- as_win_tbl(patients, index_var = "start", dur_var = "end", interval = time_unit(freq))
 
 # Only keep patients in the base cohort (see base_cohort.R)
-base <- arrow::read_parquet(file.path(conf$out_dir, "base", src, "sta.parquet"))
+base <- readRDS(file.path(conf$out_dir, "base", src, "sta.rds"))
 patients <- patients[id_col(patients) %in% id_col(base)]
 
 
@@ -143,8 +139,13 @@ if (!dir.exists(out_path)) {
   dir.create(out_path, recursive = TRUE)
 }
 
-arrow::write_parquet(outc_fmt, paste0(out_path, "/outc.parquet"))
-arrow::write_parquet(dyn_fmt, paste0(out_path, "/dyn.parquet"))
-arrow::write_parquet(sta_fmt, paste0(out_path, "/sta.parquet"))
+
+saveRDS(outc_fmt, paste0(out_path, "/outc.rds"))
+saveRDS(dyn_fmt, paste0(out_path, "/dyn.rds"))
+saveRDS(sta_fmt, paste0(out_path, "/sta.rds"))
+
+#arrow::write_parquet(outc_fmt, paste0(out_path, "/outc.parquet"))
+#arrow::write_parquet(dyn_fmt, paste0(out_path, "/dyn.parquet"))
+#arrow::write_parquet(sta_fmt, paste0(out_path, "/sta.parquet"))
 fwrite(attrition, paste0(out_path, "/attrition.csv"))
 
