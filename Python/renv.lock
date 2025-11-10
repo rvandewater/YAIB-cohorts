@@ -42,25 +42,8 @@
     },
     "arrow": {
       "Package": "arrow",
-      "Version": "11.0.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "R6",
-        "assertthat",
-        "bit64",
-        "cpp11",
-        "glue",
-        "methods",
-        "purrr",
-        "rlang",
-        "stats",
-        "tidyselect",
-        "utils",
-        "vctrs"
-      ],
-      "Hash": "e861b81e0b87a2f133a688c985953508"
+      "Version": "22.0.0",
+      "Source": "Repository"
     },
     "askpass": {
       "Package": "askpass",
