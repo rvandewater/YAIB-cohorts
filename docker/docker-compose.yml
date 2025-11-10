@@ -1,0 +1,16 @@
+services:
+  yaib_cohorts:
+    build: .
+    image: yaib_cohorts_image
+    container_name: yaib_cohorts_container
+      
+    volumes:
+      - ..:/home/ruser/app
+      - ~/datasets/ricu:/home/ruser/data
+
+    environment: 
+      - RENV_CONFIG_CACHE_ENABLED=FALSE
+
+    tty: true
+    stdin_open: true
+    command: ["bash"]
