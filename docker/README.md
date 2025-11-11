@@ -4,15 +4,17 @@ Run the YAIB cohorts code in a reproducible Linux container. No prior Docker exp
 
 ## Prerequisites
 
-
 ### macOS
 
 Install **Docker Desktop** _or_ install via Homebrew:
 
 ```bash
 brew install docker docker-compose colima docker-buildx
-colima start   # starts the local Linux VM used by Docker CLI
+# start the local Linux VM used by Docker CLI
+colima start   
 ```
+
+Note that if you run into memory issues, you can increase the docker memory by using the `--memory` parameter. For example, this `colima start --memory 24` sets the memory to 24GB.
 
 Verify:
 ```bash
@@ -43,8 +45,8 @@ Edit docker/docker-compose.yml and set the datasets path:
 services:
   yaib_cohorts_env:
     volumes:
-      - ..:/home/ruser/app              # repo root mounted into the container
-      - ~/datasets/ricu:/home/ruser/data   # <-- change to the left of `:`
+      - ..:/home/ruser/app                                      # repo root mounted into the container. DO NOT CHANGE.
+      - [PATH_TO_RICU_DATA_ON_YOUR_MACHINE}]:/home/ruser/data   # <-- change to the left of `:`
 ```
 
 ## Build the image
@@ -76,7 +78,7 @@ Quick checks:
 
 ```bash 
 pwd                      # should be /home/ruser/app
-ls /home/ruser/data      # should show your RICU datasets
+ls /home/ruser/data      # should show your RICU datasets (if you already imported any)
 ```
 
 ## Run the code
