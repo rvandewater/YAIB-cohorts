@@ -14,7 +14,7 @@ brew install docker docker-compose colima docker-buildx
 colima start   
 ```
 
-Note that if you run into memory issues, you can increase the docker memory by using the `--memory` parameter. For example, this `colima start --memory 24` sets the memory to 24GB.
+Note that if you encounter memory issues, you can increase Docker memory by using the `--memory` parameter. For example, this `colima start --memory 24` sets the memory to 24GB.
 
 Verify:
 ```bash
@@ -46,12 +46,12 @@ services:
   yaib_cohorts_env:
     volumes:
       - ..:/home/ruser/app                                      # repo root mounted into the container. DO NOT CHANGE.
-      - [PATH_TO_RICU_DATA_ON_YOUR_MACHINE}]:/home/ruser/data   # <-- change to the left of `:`
+      - [PATH_TO_RICU_DATA_ON_YOUR_MACHINE]:/home/ruser/data   # <-- change to the left of `:`
 ```
 
 ## Build the image
 
-From the docker subfolder:
+From the Docker subfolder:
 
 ```bash 
 cd docker
@@ -94,5 +94,5 @@ Remove stopped containers built by Compose: `docker compose down --remove-orphan
 
 Remove the image if needed: `docker image rm yaib_cohorts_image`
 
-Stop colima: `colima stop`
+Stop Colima: `colima stop`
 
