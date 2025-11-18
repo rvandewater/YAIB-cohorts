@@ -6,7 +6,7 @@ services:
       
     volumes:
       - ..:/home/ruser/app
-      - ~/datasets/ricu:/home/ruser/data
+      - [PATH_TO_RICU_DATA_ON_YOUR_MACHINE]:/home/ruser/data
 
     environment: 
       - RENV_CONFIG_CACHE_ENABLED=FALSE
