@@ -10,6 +10,7 @@ from .Rutils import as_data_frame, r_to_pandas
 
 # Load ricu
 os.environ["RICU_DATA_PATH"] = conf["ricu_data_path"]
+print(f"RICU_DATA_PATH set to {conf['ricu_data_path']}")
 ricu = importr('ricu')
 
 ro.r['source']('../ricu-extensions/callbacks/callback-icu-mortality.R')
