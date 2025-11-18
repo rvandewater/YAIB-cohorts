@@ -31,7 +31,7 @@ RUN python -m pip install \
     "pandas==2.2.3" \
     "numpy==2.2.5" \
     "rpy2==3.5.12" \
-    "pyyaml==6.0.3"
+    "PyYAML==6.0.3"
 
 WORKDIR /home/ruser/app
 

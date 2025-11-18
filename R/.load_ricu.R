@@ -1,4 +1,8 @@
-Sys.setenv(RICU_DATA_PATH = "/home/ruser/data")
+library(yaml)
+conf <- yaml.load_file("../config.yaml")
+
+Sys.setenv(RICU_DATA_PATH = conf$ricu_data_path)
+print(paste0("RICU_DATA_PATH set to ", conf$ricu_data_path))
 
 if(require("ricu", quietly = TRUE)) {
   source("../ricu-extensions/callbacks/callback-icu-mortality.R")

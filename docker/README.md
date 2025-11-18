@@ -43,7 +43,7 @@ Edit docker/docker-compose.yml and set the datasets path:
 
 ```yaml
 services:
-  yaib_cohorts_env:
+  yaib_cohorts:
     volumes:
       - ..:/home/ruser/app                                      # repo root mounted into the container. DO NOT CHANGE.
       - [PATH_TO_RICU_DATA_ON_YOUR_MACHINE]:/home/ruser/data   # <-- change to the left of `:`
