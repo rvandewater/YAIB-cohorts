@@ -28,7 +28,7 @@ Once you have imported the datasets, make sure to set the right data path in the
 ricu_data_path: "/home/ruser/data"
 ```
 
-> Note: If you are using Docker to run YAIB-cohorts, you don't need to make any changes in [`config.yaml`](../config.yaml). Instead, you need to define the path in [`docker/docker-compose.yml`]. 
+> Note: If you are using Docker to run YAIB-cohorts, you don't need to make any changes in [`config.yaml`](../config.yaml). Instead, you need to define the path in [`docker/docker-compose.yml`](../docker/docker-compose.yml). 
 
 
 ### Step 2: Generate the Cohorts
