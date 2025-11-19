@@ -21,13 +21,13 @@ In order to access the full datasets through R, you need to download them and ma
 
 For quick experimentation, `ricu` comes with two demo datasets: `mimic.demo` and `eicu.demo`. These are small, openly available subsets of mimic and eicu that allow for easy prototyping. They should have been installed by `renv`. If they aren't, please see the respective Github pages [here](https://github.com/eth-mds/mimic-demo) and [here](https://github.com/eth-mds/eicu-demo).
 
-Once you have imported the datasets, make sure to set the right data path in the [`config.yaml`](../config.yaml) file.
+Once you have imported the datasets, make sure to set the right data path in the [config.yaml](../config.yaml) file.
 
 ```r
 ricu_data_path: "/home/ruser/data"
 ```
 
-> Note: If you are using Docker to run YAIB-cohorts, you don't need to make any changes in [`config.yaml`](../config.yaml). Instead, you need to define the path in [`docker/docker-compose.yml`](../docker/docker-compose.yml). 
+> Note: If you are using Docker to run YAIB-cohorts, you don't need to make any changes in [config.yaml](../config.yaml). Instead, you need to define the path in [docker/docker-compose.yml](../docker/docker-compose.yml). 
 
 
 ### Step 2: Generate the Cohorts
@@ -53,4 +53,4 @@ python mortality.py --src mimic_demo
 
 where `mortality.py` should be replaced with the task file of interest and `mimic_demo` with the database of interest (one of `mimic_demo`, `eicu_demo`, `aumc`, `hirid`, `eicu`, `mimic`, `miiv`). 
 
-The output directory for the extracted data can also be set in [`config.yaml`](../config.yaml).
+The output directory for the extracted data can also be set in [config.yaml](../config.yaml).
