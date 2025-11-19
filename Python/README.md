@@ -13,19 +13,21 @@ python setup_env.py
 
 ```
 
+> Update: if you are running into issues setting up your environment, there is now a Docker workflow that should simplify creating the environment. See the subfolder `docker` for more information.
+
 ### Step 1: Load the datasets into `ricu`
 
-In order to access the full datasets through R, you need to download them and make them available to `ricu`. Please follow the instructions given by the `ricu` package: `?ricu::import_src`. Currently, Python code to perform this step is in development and will be uploaded soon. 
+In order to access the full datasets through R, you need to download them and make them available to `ricu`. Please follow the instructions given by the `ricu` package: `?ricu::import_src`. 
 
 For quick experimentation, `ricu` comes with two demo datasets: `mimic.demo` and `eicu.demo`. These are small, openly available subsets of mimic and eicu that allow for easy prototyping. They should have been installed by `renv`. If they aren't, please see the respective Github pages [here](https://github.com/eth-mds/mimic-demo) and [here](https://github.com/eth-mds/eicu-demo).
 
-Once you have imported the datasets, make sure to set the right data path in [.Rprofile](.Rprofile) file in this directory:
+Once you have imported the datasets, make sure to set the right data path in the [`config.yaml`](../config.yaml) file.
 
 ```r
-
-Sys.setenv(RICU_DATA_PATH = "/path/to/your/ricu/data/folder")
-
+ricu_data_path: "/home/ruser/data"
 ```
+
+> Note: If you are using Docker to run YAIB-cohorts, you don't need to make any changes in [`config.yaml`](../config.yaml). Instead, you need to define the path in [`docker/docker-compose.yml`]. 
 
 
 ### Step 2: Generate the Cohorts
