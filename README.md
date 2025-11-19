@@ -64,6 +64,7 @@ Once you have cloned the repo, all cohorts can be created directly from within R
 
 - R: [README.md](R/README.md)
 - Python: [README.md](Python/README.md)  
+New: We also provide a [Docker image](https://github.com/rvandewater/YAIB-cohorts/tree/main/docker) to simplify things.
 
 Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally from those published in the benchmarking paper.
 
