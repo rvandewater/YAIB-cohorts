@@ -32,7 +32,12 @@ max_len <- 7 * 24  # = 7 days
 
 static_vars <- c("age", "sex", "ethnic", "adm", "los_icu", "los_hosp")
 
-dynamic_vars <- c("dbp", "hr")
+dynamic_vars <- c("alb", "alp", "alt", "ast", "be", "bicar", "bili", "bili_dir",
+                  "bnd", "bun", "ca", "cai", "ck", "ckmb", "cl", "crea", "crp", 
+                  "dbp", "fgn", "fio2", "glu", "hgb", "hr", "inr_pt", "k", "lact",
+                  "lymph", "map", "mch", "mchc", "mcv", "methb", "mg", "na", "neut", 
+                  "o2sat", "pco2", "ph", "phos", "plt", "po2", "ptt", "resp", "sbp", 
+                  "temp", "tnt", "urine", "wbc")
 
 # cross-sectional vs longitudinal
 predictor_type <- "dynamic" # static / dynamic
@@ -144,8 +149,8 @@ if (!dir.exists(out_path)) {
   dir.create(out_path, recursive = TRUE)
 }
 
-saveRDS(dyn_fmt, paste0(out_path, "/dyn.rds"))
-saveRDS(sta_fmt, paste0(out_path, "/sta.rds"))
+arrow::write_parquet(dyn_fmt, paste0(out_path, "/dyn.parquet"))
+arrow::write_parquet(sta_fmt, paste0(out_path, "/sta.parquet"))
 fwrite(attrition, paste0(out_path, "/attrition.csv"))
 
 
