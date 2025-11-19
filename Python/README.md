@@ -53,4 +53,4 @@ python mortality.py --src mimic_demo
 
 where `mortality.py` should be replaced with the task file of interest and `mimic_demo` with the database of interest (one of `mimic_demo`, `eicu_demo`, `aumc`, `hirid`, `eicu`, `mimic`, `miiv`). 
 
-The output directory for the extracted data can be set in [../config.yaml](../config.yaml)
+The output directory for the extracted data can also be set in [`config.yaml`](../config.yaml).
