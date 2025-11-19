@@ -42,25 +42,8 @@
     },
     "arrow": {
       "Package": "arrow",
-      "Version": "11.0.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "R6",
-        "assertthat",
-        "bit64",
-        "cpp11",
-        "glue",
-        "methods",
-        "purrr",
-        "rlang",
-        "stats",
-        "tidyselect",
-        "utils",
-        "vctrs"
-      ],
-      "Hash": "e861b81e0b87a2f133a688c985953508"
+      "Version": "22.0.0",
+      "Source": "Repository"
     },
     "askpass": {
       "Package": "askpass",
@@ -426,7 +409,7 @@
         "utils",
         "vctrs"
       ],
-      "Hash": "2681cdea2f2f3446691071ea30f745b5"
+      "Hash": "3b516be5268e95b4499da9770045b91d"
     },
     "rlang": {
       "Package": "rlang",
@@ -492,6 +475,17 @@
       ],
       "Hash": "b2e1cbce7c903eaf23ec05c58e59fb5e"
     },
+    "units": {
+      "Package": "units",
+      "Version": "0.8-7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp"
+      ],
+      "Hash": "5d0b024902d5da97a2b64f002e92a869"
+    },
     "utf8": {
       "Package": "utf8",
       "Version": "1.2.3",
@@ -554,6 +548,13 @@
         "stats"
       ],
       "Hash": "c0e49a9760983e81e55cdd9be92e7182"
+    },
+    "yaml": {
+      "Package": "yaml",
+      "Version": "2.3.7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "0d0056cc5383fbc240ccd0cb584bf436"
     }
   }
 }

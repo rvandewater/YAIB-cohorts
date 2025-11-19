@@ -135,8 +135,8 @@ def make_prevalence_calculator(var: str) -> Callable:
     return calculate_prevalence
 
 
-def make_outcome_windower(window: int) -> Callable:
+def make_outcome_windower(window: int, outc_name: str = 'label') -> Callable:
         def outcome_window(x: pd.DataFrame):
-            x['label'] = x.groupby('stay_id')['label'].ffill(limit=window).bfill(limit=window).fillna(0)
+            x[outc_name] = x.groupby('stay_id')[outc_name].ffill(limit=window).bfill(limit=window).fillna(0)
             return x
         return outcome_window

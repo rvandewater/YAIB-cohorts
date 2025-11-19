@@ -5,6 +5,7 @@ library(data.table)
 library(vctrs)
 library(yaml)
 
+source(".load_ricu.R")
 source("R/misc.R")
 source("R/steps.R")
 source("R/sequential.R")
