@@ -381,14 +381,14 @@
     },
     "ricu": {
       "Package": "ricu",
-      "Version": "0.6.0",
+      "Version": "0.6.1",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteRepo": "ricu-package",
       "RemoteUsername": "prockenschaub",
-      "RemoteRef": "monkeypatch0.6.0",
-      "RemoteSha": "0969a52747c71ae9f47051d640caa5df2d5169a0",
+      "RemoteRepo": "ricu-package",
+      "RemoteRef": "eab45173dec2fd01d1e0e1fba9a3b29e05665ea6",
+      "RemoteSha": "eab45173dec2fd01d1e0e1fba9a3b29e05665ea6",
       "Requirements": [
         "R",
         "assertthat",
@@ -409,7 +409,7 @@
         "utils",
         "vctrs"
       ],
-      "Hash": "3b516be5268e95b4499da9770045b91d"
+      "Hash": "3e3d7214450ba613110fe2d276296d91"
     },
     "rlang": {
       "Package": "rlang",
