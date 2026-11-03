@@ -75,5 +75,5 @@ The cohorts of both backends can be compared with `weavehr-yaib-compare-cohorts`
 
 - Sepsis: SOFA is WeavEHR's score (the latest value of each component within 24h, rather than ricu's worst value within 24h), and microbiology samples recorded by date only are timed at the end of that day (ricu: midday).
 - `abx_cont` (sepsis) in ricu-extensions adds antibiotic start times in hours and durations in minutes, which R computes in seconds, so its criterion of at most 24h between antibiotics practically never applies. `reproduce_ricu_abx_cont` in `config.yml` reproduces this (default) or applies the criterion as intended.
-- Records with the same time and kind are ordered differently, which can change the urine rate of that hour (eICU demo: 3 of 6071 AKI hours).
+- ICU stays without a discharge time are left out, and their number is printed (ricu leaves out HiRID patients without observations).
 - HiRID and AmsterdamUMCdb have only been tested on synthetic data. AmsterdamUMCdb: WeavEHR reads version 1.5.0 through the OMOP export, ricu version 1.0.2; age, height and weight (age, height and weight groups in ricu) and antibiotics (sepsis) are not available, and ICU deaths assume that the export keeps the discharge destination ("Overleden").

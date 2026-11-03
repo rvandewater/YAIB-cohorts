@@ -6,7 +6,9 @@
 #   static: true marks per-stay concepts (ricu target id_tbl); values: maps text values to categories.
 #   sources: settings for a dataset, e.g., another WeavEHR concept; cumulative: values are running totals,
 #   each record counts its increase (hirid_urine); ratio_to: values are counts, taken relative to that concept
-#   of the same hour in % (blood_cell_ratio).
+#   of the same hour in % (blood_cell_ratio); item_order: regular expressions on the source code of the records,
+#   ordering the records of an hour by the first one they match, as ricu appends the items of a concept (this
+#   matters for the urine rate of AKI, which uses the records unaggregated).
 #   The outcome concepts los_icu, hospital_id, death_icu, aki and sep3_alt are computed in Python
 #   (ports of ricu-extensions/callbacks) and are not listed here.
 
@@ -59,7 +61,9 @@ concepts:
   tnt: {weavehr: troponin_t, min: 0}
   urine:
     {weavehr: urine_output, min: 0, max: 2000, aggregate: sum,
-     sources: {hirid: {weavehr: urine_output_cumulative, cumulative: true}}}
+     sources: {hirid: {weavehr: urine_output_cumulative, cumulative: true},
+               # ricu's two eICU items: the cell labels Urine and URINE CATHETER, then catheter outputs
+               eicu-crd: &eicu-urine {item_order: ['\|(Urine|URINE CATHETER)$']}, eicu-demo: *eicu-urine}}
   wbc: {weavehr: white_blood_cell_count, min: 0}
   age: {weavehr: patient_age, min: 0, max: 100, static: true}
   sex: {weavehr: patient_sex, static: true, values: {GENDER//F: Female, GENDER//M: Male, GENDER//Female: Female, GENDER//Male: Male,

@@ -2,7 +2,8 @@
 
 Reads a WeavEHR project built with `weavehr_build.py` and returns the tables that `ricu::stay_windows()`
 and `ricu::load_concepts()` return at an hourly interval: one row per ICU stay (`stay_id`) and hour since
-ICU admission (`time`, floored), or one row per stay for static concepts.
+ICU admission (`time`, floored), or one row per stay for static concepts. ICU stays without a discharge
+time are left out (as ricu does for HiRID patients without observations).
 
 As in ricu, each concept row is attached to ICU stays through the most specific ID of its source table:
 static concepts to all stays of that ID, time series within that ID to the first stay ending at or after
@@ -12,7 +13,7 @@ hospital_id, death_icu, aki and sep3_alt are ports of ricu and ../ricu-extension
 """
 from functools import cache
 from pathlib import Path
-from typing import List
+from typing import Iterator, List
 
 import pandas as pd
 import polars as pl
@@ -31,6 +32,9 @@ AGGREGATE = {
     "max": lambda x: x.max(),
     "first": lambda x: x.first(),
 }
+
+# concept rows attached to ICU stays at a time, which bounds the memory used (about 150 bytes per row)
+CHUNK_ROWS = 10_000_000
 
 
 def hours(x: int) -> pd.Timedelta:
@@ -79,12 +83,14 @@ def _stays(src: str) -> pl.DataFrame:
                              columns=list(dict.fromkeys(["subject_id", *spec["id_columns"], "time"])))
     if isinstance(spec["icu_discharge"], dict):
         outtime = (pl.scan_parquet(root / f"{spec['icu_discharge']['last_of']}.parquet")
-                   .group_by("subject_id").agg(pl.col("time").max()).collect())
+                   .group_by("subject_id").agg(pl.col("time").max()).collect(engine="streaming"))
     else:
         outtime = pl.read_parquet(root / f"{spec['icu_discharge']}.parquet", columns=[stay, "time"])
-    return (intime.rename({"time": "intime"})
-            .join(outtime.rename({"time": "outtime"}), on=stay, how="left")
-            .sort(stay))
+    stays = intime.rename({"time": "intime"}).join(outtime.rename({"time": "outtime"}), on=stay, how="left")
+    missing = stays["outtime"].null_count()
+    if missing:
+        print(f"NOTE: {missing} ICU stays of {src} without a discharge time are left out.")
+    return stays.drop_nulls("outtime").sort(stay)
 
 
 def _stay_minutes(src: str) -> pl.DataFrame:
@@ -121,33 +127,53 @@ def _id_column(src: str, table: str) -> str | None:
     return next((col for col in spec["id_columns"] if col in columns), None)
 
 
-def _with_ids(src: str, rows: pl.DataFrame, table: str, event: str | None) -> tuple[pl.DataFrame, str | None]:
+def _with_ids(src: str, rows: pl.LazyFrame, table: str, event: str | None) -> tuple[pl.DataFrame, str | None]:
     """Add the ID column of the source table to concept rows, matching the extracted events on subject, time
     and, where known, event and code. Rows matching events of several IDs are matched on their value as well;
     rows still matching several IDs get each of them, as each ID has such an event."""
     level = _id_column(src, table)
     if level is None:
-        return rows, None
+        return rows.drop("source_code").collect(engine="streaming"), None
     _, root, _ = _source(src)
     files = [root / table / f"{event}.parquet"] if event else list((root / table).glob("*.parquet"))
     files = [f for f in files if level in pl.scan_parquet(f).collect_schema().names()]
     events = pl.concat([pl.scan_parquet(f).select("subject_id", "time", pl.col("code").alias("source_code"),
                                                   _decimal(pl.col("numeric_value")), level) for f in files])
+    keys = ["subject_id", "time"]
+    codes = rows.select(pl.col("source_code").unique()).collect(engine="streaming")["source_code"]
+    if codes.null_count() == 0:
+        # only the events of the rows' codes, matched on a number per code rather than on the code
+        codes = pl.LazyFrame({"source_code": codes}).with_row_index("code")
+        rows = rows.join(codes, on="source_code", maintain_order="left")
+        events, keys = events.join(codes, on="source_code"), keys + ["code"]
+    rows = rows.drop("source_code").with_row_index("row").collect(engine="streaming")
+    events = events.drop("source_code")
 
-    def match(rows: pl.DataFrame, keys: List[str]) -> pl.DataFrame:
-        ids = (events.join(rows.lazy().select(keys).unique(), on=keys, how="semi", nulls_equal=True)
-               .group_by(keys).agg(pl.col(level).drop_nulls().unique().alias("ids")).collect())
-        return rows.join(ids, on=keys, how="left", nulls_equal=True)
+    def lookup(rows: pl.DataFrame, keys: List[str], ids: List[pl.Expr]) -> pl.LazyFrame:
+        return (events.drop_nulls(level).join(rows.lazy().select(keys).unique(), on=keys, how="semi", nulls_equal=True)
+                .group_by(keys).agg(ids))
 
-    keys = ["subject_id", "time"] + (["source_code"] if rows["source_code"].is_not_null().all() else [])
-    rows = match(rows, keys)
-    several = (pl.col("ids").list.len() > 1).fill_null(False)
+    # the ID of the events with the same keys; rows whose events have several IDs: lowest and highest
+    rows = (rows.lazy()
+            .join(lookup(rows, keys, [pl.col(level).min(), pl.col(level).max().alias("last")]),
+                  on=keys, how="left", nulls_equal=True, maintain_order="left")
+            .collect(engine="streaming"))
+    several = (pl.col("last") != pl.col(level)).fill_null(False)
     if rows.select(several.any()).item():
-        by_value = (match(rows.filter(several).rename({"ids": "candidates"}), keys + ["numeric_value"])
-                    .with_columns(pl.when(pl.col("ids").list.len() > 0).then("ids").otherwise("candidates").alias("ids"))
-                    .drop("candidates"))
-        rows = pl.concat([rows.filter(~several), by_value])
-    return rows.explode("ids").rename({"ids": level}), level
+        ambiguous = rows.filter(several).drop(level, "last")
+        ambiguous = (ambiguous.lazy()
+                     .join(lookup(ambiguous, keys, [pl.col(level).unique().alias("candidates")]),
+                           on=keys, how="left", nulls_equal=True, maintain_order="left")
+                     .join(lookup(ambiguous, keys + ["numeric_value"], [pl.col(level).unique().alias("by_value")]),
+                           on=keys + ["numeric_value"], how="left", nulls_equal=True, maintain_order="left")
+                     .with_columns(pl.when(pl.col("by_value").list.len() > 0).then("by_value").otherwise("candidates")
+                                   .alias(level))
+                     .drop("candidates", "by_value").explode(level).collect())
+        # in the order of the rows (records of the same time are ordered as in the source)
+        rows = pl.concat([rows.filter(~several).drop("last"), ambiguous]).sort("row", maintain_order=True)
+    else:
+        rows = rows.drop("last")
+    return rows.drop("code", "row", strict=False), level
 
 
 def _attach(rows: pl.DataFrame, src: str, level: str | None, static: bool) -> pl.DataFrame:
@@ -164,7 +190,7 @@ def _attach(rows: pl.DataFrame, src: str, level: str | None, static: bool) -> pl
     rows = rows.filter(pl.col(key).is_not_null())
 
     if static or key == stay:
-        res = rows.join(stays, on=key, how="inner")
+        res = rows.join(stays.drop("outtime"), on=key, how="inner", maintain_order="left")
     else:
         stays = stays.drop_nulls("outtime").sort("outtime")
         rows = rows.drop([stay], strict=False).sort("time")
@@ -188,67 +214,90 @@ def _concept_cfg(src: str, name: str) -> dict:
     return {**cfg, **cfg.get("sources", {}).get(src, {})}
 
 
-def _concept_rows(src: str, name: str) -> pl.DataFrame:
-    """Output rows of the WeavEHR concept(s) behind `name`."""
-    weavehr = _concept_cfg(src, name)["weavehr"]
-    if not isinstance(weavehr, list):
-        return _weavehr_rows(src, weavehr, name)
+def _concept_rows(src: str, name: str) -> pl.LazyFrame:
+    """Output rows of the WeavEHR concept(s) behind `name`, with the columns used for it."""
+    cfg = _concept_cfg(src, name)
+    weavehr = cfg["weavehr"] if isinstance(cfg["weavehr"], list) else [cfg["weavehr"]]
+    schema = pl.Schema({"subject_id": pl.Int64, "time": pl.Datetime("us"), "numeric_value": pl.Float64,
+                        **({"text_value": pl.String} if "values" in cfg else {}),
+                        "table": pl.String, "event": pl.String, "source_code": pl.String})
+    res = _weavehr_rows(src, weavehr[0], schema)
     # pooled concepts: a source row mapped by several of them counts once
     keys = ["subject_id", "time", "numeric_value", "table", "event", "source_code"]
-    res = _weavehr_rows(src, weavehr[0], name)
     for concept in weavehr[1:]:
-        rows = _weavehr_rows(src, concept, name)
+        rows = _weavehr_rows(src, concept, schema)
         res = pl.concat([res, rows.join(res.select(keys).unique(), on=keys, how="anti", nulls_equal=True)])
     return res
 
 
-def _weavehr_rows(src: str, weavehr: str, name: str) -> pl.DataFrame:
+def _weavehr_rows(src: str, weavehr: str, schema: pl.Schema) -> pl.LazyFrame:
     _, _, version = _source(src)
     files = list((project_path(src) / "datasets" / "concept" / "data" / weavehr).glob(f"*/{src}/{version}.parquet"))
-    schema = pl.Schema({"subject_id": pl.Int64, "time": pl.Datetime("us"), "numeric_value": pl.Float64,
-                        "text_value": pl.String, "table": pl.String, "event": pl.String, "source_code": pl.String})
     if len(files) != 1:
         print(f"WARNING: no unique output of WeavEHR concept {weavehr} for {src} {version}, found {files}.")
-        return pl.DataFrame(schema=schema).with_columns(concept=pl.lit(name))
+        return pl.LazyFrame(schema=schema)
     lf = pl.scan_parquet(files[0])
     present = lf.collect_schema().names()
     return (lf.select(*[pl.col(col) if col in present else pl.lit(None).alias(col) for col in schema])
-            .cast(schema).with_columns(_decimal(pl.col("numeric_value")), concept=pl.lit(name)).collect())
+            .cast(schema).with_columns(_decimal(pl.col("numeric_value"))))
 
 
-def _events(src: str, names: List[str], static: bool) -> pl.DataFrame:
-    """Rows of the configured concepts `names`, attached to ICU stays.
+def _event_chunks(src: str, name: str, static: bool) -> Iterator[pl.DataFrame]:
+    """Rows of the configured concept `name`, attached to ICU stays one source table and event at a time.
 
-    Rows without a source table (e.g., scores computed by WeavEHR) are attached like rows of a patient-level table.
+    Concepts with more than CHUNK_ROWS rows are attached in chunks of subjects, so that all rows of a stay are in
+    the same chunk. Rows without a source table (e.g., scores computed by WeavEHR) are attached like rows of a
+    patient-level table. With `item_order`, the rows of each hour are ordered by item (ricu: items are appended).
     """
-    rows = pl.concat([_concept_rows(src, name) for name in names])
-    parts = []
-    for (table, event), part in rows.group_by("table", "event"):
-        part, level = _with_ids(src, part, table, event) if table is not None else (part, None)
-        parts.append(_attach(part, src, level, static))
-    res = pl.concat(parts) if parts else _attach(rows, src, None, static)
-    return res.drop("table", "event", "source_code")
+    rows = _concept_rows(src, name)
+    item_order = _concept_cfg(src, name).get("item_order", [])
+    if item_order:
+        item = pl.lit(len(item_order))
+        for i, pattern in reversed(list(enumerate(item_order))):
+            item = pl.when(pl.col("source_code").str.contains(pattern)).then(i).otherwise(item)
+        rows = rows.with_columns(item.alias("item"))
+    groups = rows.group_by("table", "event").len().collect(engine="streaming").sort("table", "event", nulls_last=True)
+    chunks = max(1, -(-groups["len"].sum() // CHUNK_ROWS))
+    for i in range(chunks):
+        chunk = rows.filter(pl.col("subject_id") % chunks == i) if chunks > 1 else rows
+        parts = []
+        for table, event, _ in groups.iter_rows():
+            part = chunk.filter(pl.col("table").eq_missing(table) & pl.col("event").eq_missing(event)).drop("table", "event")
+            if table is None:
+                part, level = part.drop("source_code").collect(engine="streaming"), None
+            else:
+                part, level = _with_ids(src, part, table, event)
+            parts.append(_attach(part, src, level, static))
+        res = pl.concat(parts) if parts else _attach(chunk.drop("table", "event", "source_code").collect(), src, None, static)
+        if item_order and not static:
+            res = res.sort("stay_id", "time", "item", maintain_order=True).drop("item")
+        yield res
 
 
-def _aggregate(src: str, events: pl.DataFrame, name: str, static: bool) -> pl.DataFrame:
+def _events(src: str, name: str, static: bool) -> pl.DataFrame:
+    """Rows of the configured concept `name`, attached to ICU stays."""
+    return pl.concat(_event_chunks(src, name, static))
+
+
+def _aggregate(cfg: dict, events: pl.DataFrame, name: str, static: bool, other: pl.DataFrame | None) -> pl.DataFrame:
     """Values of concept `name` within its range, aggregated per stay (static) or per stay and hour.
 
     `cumulative`: values are running totals; each record counts its increase (`hirid_urine`).
-    `ratio_to`: values are counts, relative to the concept of the same hour in % (`blood_cell_ratio`).
+    `ratio_to`: values are counts, relative to the concept `other` of the same hour in % (`blood_cell_ratio`).
     """
-    cfg = _concept_cfg(src, name)
     keys = ["stay_id"] if static else ["stay_id", "time"]
     if "values" in cfg:
         value, fun = pl.col("text_value").replace_strict(cfg["values"], default=None), "first"
     else:
         value, fun = pl.col("numeric_value"), cfg.get("aggregate", "median")
-    res = events.filter(pl.col("concept") == name).sort(keys, maintain_order=True).select(*keys, value.alias(name))
+    res = events.select(*keys, value.alias(name)).sort(keys, maintain_order=True)
     if cfg.get("cumulative"):
         increase = pl.col(name).diff().over("stay_id").fill_null(pl.col(name))
         res = res.with_columns(pl.when(increase < 0).then(0).otherwise(increase).alias(name))
-    if "ratio_to" in cfg:
-        other = cfg["ratio_to"]
-        res = res.join(_load(src, other), on=keys, how="inner").with_columns((100 * pl.col(name) / pl.col(other)).alias(name)).drop(other)
+    if other is not None:
+        ratio = cfg["ratio_to"]
+        res = (res.join(other, on=keys, how="inner", maintain_order="left")
+               .with_columns((100 * pl.col(name) / pl.col(ratio)).alias(name)).drop(ratio))
     res = res.drop_nulls(name)
     if "min" in cfg:
         res = res.filter(pl.col(name) >= cfg["min"])
@@ -258,8 +307,12 @@ def _aggregate(src: str, events: pl.DataFrame, name: str, static: bool) -> pl.Da
 
 
 def _load(src: str, name: str) -> pl.DataFrame:
-    static = _concept_cfg(src, name).get("static", False)
-    return _aggregate(src, _events(src, [name], static), name, static)
+    """Concept `name` aggregated per stay (static) or per stay and hour, one chunk of subjects at a time."""
+    cfg = _concept_cfg(src, name)
+    static = cfg.get("static", False)
+    other = _load(src, cfg["ratio_to"]) if "ratio_to" in cfg else None
+    keys = ["stay_id"] if static else ["stay_id", "time"]
+    return pl.concat([_aggregate(cfg, events, name, static, other) for events in _event_chunks(src, name, static)]).sort(keys)
 
 
 # ------------------------------------------------------------------------------
@@ -270,10 +323,10 @@ def _los_icu(src: str) -> pl.DataFrame:
     return _stay_minutes(src).select("stay_id", (pl.col("minutes") / 1440).alias("los_icu")).filter(pl.col("los_icu") >= 0)
 
 
-def _source_events(src: str, events: str, columns: List[str] | None = None) -> tuple[pl.DataFrame, str | None]:
+def _source_events(src: str, events: str) -> tuple[pl.LazyFrame, str | None]:
     """Extracted events (`<table>/<event>`) of a source and the ID column of their table."""
     _, root, _ = _source(src)
-    return pl.read_parquet(root / f"{events}.parquet", columns=columns), _id_column(src, events.split("/")[0])
+    return pl.scan_parquet(root / f"{events}.parquet"), _id_column(src, events.split("/")[0])
 
 
 def _hospital_id(src: str) -> pl.DataFrame:
@@ -282,7 +335,8 @@ def _hospital_id(src: str) -> pl.DataFrame:
     if "hospital_id" not in spec:
         return _stay_minutes(src).select("stay_id", pl.lit(1).alias("hospital_id"))
     ev, level = _source_events(src, spec["hospital_id"])
-    ev = ev.select("subject_id", level, pl.col("numeric_value").alias("hospital_id")).filter(pl.col("hospital_id").is_between(1, 1000))
+    ev = (ev.select("subject_id", level, pl.col("numeric_value").alias("hospital_id"))
+          .filter(pl.col("hospital_id").is_between(1, 1000)).collect())
     return _attach(ev, src, level, static=True).group_by("stay_id").agg(pl.col("hospital_id").first()).sort("stay_id")
 
 
@@ -298,9 +352,10 @@ def _death_icu(src: str) -> pl.DataFrame:
     if "discharge_status" in cfg:
         ev, level = _source_events(src, cfg["discharge_status"])
         died = (pl.col(cfg["status_column"]) == cfg["died"]) if "status_column" in cfg else pl.col("code").str.ends_with(f"//{cfg['died']}")
-        ev = ev.select("subject_id", level, "time", died.fill_null(False).alias("death_icu"))
+        ev = ev.select("subject_id", level, "time", died.fill_null(False).alias("death_icu")).collect()
         if "death" in cfg:
-            death = _source_events(src, cfg["death"], ["subject_id", "time"])[0].group_by("subject_id").agg(pl.col("time").min().alias("death"))
+            death = (_source_events(src, cfg["death"])[0]
+                     .group_by("subject_id").agg(pl.col("time").min().alias("death")).collect())
             later = ((pl.col("death") - pl.col("time")) > pl.duration(hours=cfg["within_hours"])).fill_null(False)
             ev = ev.join(death, on="subject_id", how="left").with_columns((pl.col("death_icu") & ~later).alias("death_icu")).drop("death")
         if not ev["death_icu"].any():
@@ -312,7 +367,7 @@ def _death_icu(src: str) -> pl.DataFrame:
         status = pl.read_parquet(root / f"{cfg['status']}.parquet", columns=["subject_id", "text_value"])
         dead = status.filter(pl.col("text_value") == cfg["died"]).select("subject_id").unique()
         last = (pl.scan_parquet(root / f"{cfg['last_of']}.parquet").filter(pl.col("code").str.contains(cfg["code"]))
-                .join(dead.lazy(), on="subject_id", how="semi").group_by("subject_id").agg(pl.col("time").max()).collect())
+                .join(dead.lazy(), on="subject_id", how="semi").group_by("subject_id").agg(pl.col("time").max()).collect(engine="streaming"))
         level = _id_column(src, cfg["last_of"].split("/")[0])
         return _attach(last.with_columns(pl.lit(True).alias("death_icu")), src, level, static=False).sort("stay_id", "time")
 
@@ -355,7 +410,7 @@ def _aki(src: str) -> pl.DataFrame:
     # record + 1), gaps over 24h count as 1h; the maximum per hour
     cfg = _concept_cfg(src, "urine")
     tm = pl.col("time") - pl.col("time").shift(1).over("stay_id") + 1
-    urine_rate = (_events(src, ["urine"], static=False)
+    urine_rate = (_events(src, "urine", static=False)
                   .filter(pl.col("numeric_value").is_between(cfg["min"], cfg["max"]))
                   .sort("stay_id", "time", maintain_order=True)
                   .with_columns((pl.col("numeric_value") / pl.when(tm.is_null() | (tm > 24)).then(1).otherwise(tm)).alias("urine_rate"))
@@ -400,7 +455,7 @@ def _abx_duration(src: str) -> pl.DataFrame:
             minutes = pl.lit(1)
         ev = (ev.filter(pl.col("code").str.contains(item["code"]))
               .select("subject_id", level, start.alias("time"), (minutes / 60).alias("dur"))
-              .drop_nulls("time"))
+              .drop_nulls("time").collect(engine="streaming"))
         parts.append(_attach(ev, src, level, static=False))
     return pl.concat(parts).group_by("stay_id", "time").agg(pl.col("dur").max())
 
@@ -500,13 +555,8 @@ def load_concepts(concepts: str | List[str], src: str, interval=None, **kwargs) 
     if unknown:
         raise ValueError(f"Unknown concepts for the WeavEHR backend: {unknown}")
 
-    tables = {}
-    for static in (True, False):
-        base = [name for name in names if name in ext["concepts"] and _concept_cfg(src, name).get("static", False) == static]
-        if base:
-            events = _events(src, base, static)
-            tables.update({name: _aggregate(src, events, name, static) for name in base})
-    tables.update({name: DERIVED[name](src, **kwargs) for name in names if name in DERIVED})
+    # one concept at a time, so that only its hourly aggregate is kept
+    tables = {name: DERIVED[name](src, **kwargs) if name in DERIVED else _load(src, name) for name in names}
 
     res = tables[names[0]]
     for name in names[1:]:
