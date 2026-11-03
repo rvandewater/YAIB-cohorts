@@ -10,7 +10,7 @@ from src.steps import (
     AggStep, FilterStep, TransformStep, CustomStep, RenameStep,
     Pipeline, CombineStep
 )
-from src.ricu import stay_windows
+from src.backend import stay_windows
 from src.ricu_utils import (
     stop_window_at, n_obs_per_row, longest_rle, 
     make_grid_mapper, make_patient_mapper, make_prevalence_calculator, make_outcome_windower
@@ -29,7 +29,7 @@ def create_sepsis_task(args):
     print('Start creating the sepsis task.')
     print('   Preload variables')
     sepsis_args = {}
-    if args.src in ['eicu', 'eicu_demo', 'hirid']:
+    if args.src in ['eicu', 'eicu_demo', 'eicu-crd', 'eicu-demo', 'hirid']:
         sepsis_args['si_mode'] = "abx"
     load_sepsis = LoadStep(outc_var, args.src, cache=True, **sepsis_args)
     sepsis = load_sepsis.perform()
@@ -109,7 +109,7 @@ def create_sepsis_task(args):
     print('   Select cohort\n')
     cohort = Cohort(patients)
     cohort.add_criterion(
-        [excl1, excl2, excl3, excl4, excl5, excl6, excl7] if args.src in ['eicu', 'eicu_demo'] else
+        [excl1, excl2, excl3, excl4, excl5, excl6, excl7] if args.src in ['eicu', 'eicu_demo', 'eicu-crd', 'eicu-demo'] else
         [excl1, excl2, excl3, excl4, excl5, excl7] 
     )
     print(cohort.criteria)
@@ -147,7 +147,7 @@ def create_sepsis_task(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', default='mimic_demo', help='name of datasource',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
+                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv', 'mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo'])
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_sepsis_task(args)

@@ -1,0 +1,48 @@
+# Patient fields used by YAIB that WeavEHR's patient table does not extract:
+# ICU discharge status (death_icu) and hospital (hospital_id).
+path: patient.csv.gz
+
+columns:
+  - name: patienthealthsystemstayid
+    type: int64
+  - name: patientunitstayid
+    type: int64
+  - name: hospitaladmitoffset
+    type: int64
+  - name: hospitaladmittime24
+    type: string
+  - name: hospitaldischargeyear
+    type: int64
+  - name: unitdischargeoffset
+    type: int64
+  - name: unitdischargestatus
+    type: string
+  - name: hospitalid
+    type: int64
+
+post_join_callbacks:
+  # same ICU admission/discharge timestamps as WeavEHR's patient table
+  - to_datetime(hospitaldischargeyear, 1, 1, hospitaladmittime24, output=hospital_admission_timestamp)
+  - add_offset(hospital_admission_timestamp, hospitaladmitoffset * -1, output=admission_timestamp)
+  - add_offset(admission_timestamp, unitdischargeoffset, output=discharge_timestamp)
+
+event_defaults:
+  subject_id: col(patienthealthsystemstayid)
+  extension:
+    stay_id: col(patientunitstayid)
+
+events:
+  - name: UNIT_DISCHARGE_STATUS
+    columns:
+      time: col(discharge_timestamp)
+      code:
+        - col(unitdischargestatus)
+    filters:
+      - drop_na(time)
+
+  - name: HOSPITAL_ID
+    columns:
+      time: col(admission_timestamp)
+      code:
+        - const("HOSPITAL_ID")
+      numeric_value: col(hospitalid)

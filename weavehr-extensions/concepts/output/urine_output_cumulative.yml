@@ -1,0 +1,7 @@
+# Running total of urine output, as charted in HiRID; ricu's hirid_urine takes its increases.
+name: urine_output_cumulative
+version: 1.0.0
+unit: mL
+extension_columns:
+  dataset: col("dataset")
+  table: col("table")

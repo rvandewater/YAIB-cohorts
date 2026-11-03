@@ -10,7 +10,7 @@ from src.steps import (
     AggStep, FilterStep, TransformStep, CustomStep, DropStep, RenameStep,
     Pipeline
 )
-from src.ricu import stay_windows, hours
+from src.backend import stay_windows, hours
 from src.ricu_utils import (
     stop_window_at, make_grid_mapper, make_patient_mapper,
     n_obs_per_row, longest_rle
@@ -131,7 +131,7 @@ def create_mortality_task(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', default='mimic_demo', help='name of datasource',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
+                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv', 'mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo'])
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_mortality_task(args)

@@ -3,8 +3,7 @@ from typing import Any, List, Callable, Type
 
 import pandas as pd
 
-from .ricu import *
-from .Rutils import as_null, r_to_pandas
+from .backend import load_concepts
 
 
 class Step():
@@ -75,7 +74,6 @@ class LoadStep(Step):
         self.concept = concept
         if not isinstance(self.concept, list):
             self.concept = [self.concept]
-        self.concept = concepts(self.concept)
         self.src = src
         self.kwargs = kwargs
 
@@ -83,18 +81,7 @@ class LoadStep(Step):
         if input is not None:
             raise ValueError(f'Load step does not accept input, got {input}')
 
-        res = ricu.load_concepts(self.concept, self.src, **self.kwargs)
-        
-        # Rename columns uniformly across datasets
-        old = ricu.id_var(res)
-        new = ['stay_id'] # TODO: only supports loading at the stay_id level
-        if ricu.is_ts_tbl(res)[0]:
-            old += ricu.index_var(res)
-            new += ['time']
-        
-        res = ricu.rename_cols(res, ro.StrVector(new), old)
-
-        return r_to_pandas(as_data_frame(res))
+        return load_concepts(self.concept, self.src, **self.kwargs)
 
 
 class FilterStep(Step):

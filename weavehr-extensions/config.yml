@@ -1,0 +1,147 @@
+# Configuration of the WeavEHR backend (Python/src/weavehr.py), the counterpart of ricu-extensions/.
+#
+# concepts: YAIB concept name -> WeavEHR concept (or a list whose rows are pooled). Value ranges (min/max)
+#   and the hourly aggregation (default: median) are those of the ricu concept dictionary that the cohorts
+#   were defined with.
+#   static: true marks per-stay concepts (ricu target id_tbl); values: maps text values to categories.
+#   sources: settings for a dataset, e.g., another WeavEHR concept; cumulative: values are running totals,
+#   each record counts its increase (hirid_urine); ratio_to: values are counts, taken relative to that concept
+#   of the same hour in % (blood_cell_ratio).
+#   The outcome concepts los_icu, hospital_id, death_icu, aki and sep3_alt are computed in Python
+#   (ports of ricu-extensions/callbacks) and are not listed here.
+
+concepts:
+  alb: {weavehr: albumin, min: 0, max: 6}
+  alp: {weavehr: alkaline_phosphatase, min: 0}
+  alt: {weavehr: alanine_aminotransferase, min: 0}
+  ast: {weavehr: aspartate_aminotransferase, min: 0}
+  be: {weavehr: base_excess, min: -25, max: 25}
+  bicar: {weavehr: bicarbonate, min: 5, max: 50}
+  bili: {weavehr: total_bilirubin, min: 0, max: 100}
+  bili_dir: {weavehr: bilirubin_direct, min: 0, max: 50}
+  bnd: {weavehr: band_form_neutrophils}
+  bun: {weavehr: blood_urea_nitrogen, min: 0, max: 200}
+  ca: {weavehr: calcium, min: 4, max: 20}
+  cai: {weavehr: calcium_ionized, min: 0.5, max: 2}
+  ck: {weavehr: creatine_kinase, min: 0}
+  ckmb: {weavehr: creatine_kinase_MB, min: 0}
+  cl: {weavehr: chloride, min: 80, max: 130}
+  crea: {weavehr: creatinine, min: 0, max: 15}
+  crp: {weavehr: C_reactive_protein, min: 0}
+  dbp: {weavehr: diastolic_blood_pressure, min: 0, max: 200}
+  fgn: {weavehr: fibrinogen, min: 0, max: 1500}
+  fio2: {weavehr: fraction_of_inspired_oxygen, min: 21, max: 100}
+  glu: {weavehr: glucose, min: 0, max: 1000}
+  hgb: {weavehr: hemoglobin, min: 4, max: 18}
+  hr: {weavehr: heart_rate, min: 0, max: 300}
+  inr_pt: {weavehr: prothrombin_time_international_normalized_ratio}
+  k: {weavehr: potassium, min: 0, max: 10}
+  lact: {weavehr: lactate, min: 0, max: 50}
+  lymph: {weavehr: lymphocytes, min: 0, max: 100, sources: {hirid: {ratio_to: wbc}}}
+  map: {weavehr: mean_arterial_pressure, min: 0, max: 250}
+  mch: {weavehr: mean_corpuscular_hemoglobin, min: 0}
+  mchc: {weavehr: mean_corpuscular_hemoglobin_concentration, min: 20, max: 50}
+  mcv: {weavehr: mean_corpuscular_volume, min: 50, max: 150}
+  methb: {weavehr: methemoglobin, min: 0, max: 100}
+  mg: {weavehr: magnesium, min: 0.5, max: 5}
+  na: {weavehr: sodium, min: 110, max: 165}
+  neut: {weavehr: neutrophils, min: 0, max: 100, sources: {hirid: {ratio_to: wbc}}}
+  o2sat: {weavehr: [oxygen_saturation, arterial_oxygen_saturation], min: 50, max: 100}
+  pco2: {weavehr: CO2_partial_pressure, min: 10, max: 150}
+  ph: {weavehr: pH_of_blood, min: 6.8, max: 8}
+  phos: {weavehr: phosphate, min: 0, max: 40}
+  plt: {weavehr: platelet_count, min: 5, max: 1200}
+  po2: {weavehr: O2_partial_pressure, min: 40, max: 600}
+  ptt: {weavehr: partial_thromboplastin_time, min: 0}
+  resp: {weavehr: respiratory_rate, min: 0, max: 120}
+  sbp: {weavehr: systolic_blood_pressure, min: 0, max: 300}
+  temp: {weavehr: temperature, min: 32, max: 42}
+  tnt: {weavehr: troponin_t, min: 0}
+  urine:
+    {weavehr: urine_output, min: 0, max: 2000, aggregate: sum,
+     sources: {hirid: {weavehr: urine_output_cumulative, cumulative: true}}}
+  wbc: {weavehr: white_blood_cell_count, min: 0}
+  age: {weavehr: patient_age, min: 0, max: 100, static: true}
+  sex: {weavehr: patient_sex, static: true, values: {GENDER//F: Female, GENDER//M: Male, GENDER//Female: Female, GENDER//Male: Male,
+               Female: Female, Male: Male}}
+  height: {weavehr: patient_height, min: 10, max: 230, static: true}
+  weight: {weavehr: patient_weight, min: 1, max: 500, static: true}
+  # inputs of sep3_alt
+  sofa: {weavehr: sofa, aggregate: max}
+  samp: {weavehr: body_fluid_sampling}
+
+# abx_cont in ricu-extensions/callbacks/callback-sepsis.R adds antibiotic start times (hours) and durations
+# (minutes), which R computes in seconds, so its 24h gap criterion practically never applies with ricu.
+# true reproduces this; false applies the gap criterion as intended.
+reproduce_ricu_abx_cont: true
+
+# sources: per WeavEHR dataset, the ID columns of the extracted tables (most specific first, the first
+#   identifies ICU stays) and where the ICU stays and YAIB-specific source items are found in the
+#   extraction output (<table>/<event>):
+#   icu_discharge: discharge events, or {last_of: <events>}: a stay ends with the subject's last such event.
+#   death_icu: MIMIC-IV: admissions with a time of death; ICU deaths are in-hospital deaths whose last ward
+#     before discharge was an ICU (miiv_death_icu); eICU, AUMC: ICU discharge status (event code ends in
+#     //<died>, or in status_column), with death: not an ICU death if death follows more than within_hours
+#     later (aumc_death_icu); HiRID: deaths at the last record of the variables in code (hirid_death_icu).
+#   hospital_id: event with the hospital ID as value; without it, all stays are in hospital 1.
+#   abx_duration: antibiotic administrations (ricu-extensions medications/abx_duration) with their start
+#     (`start`, default: time) and duration (`duration_minutes`, or up to `end`, else one minute).
+#
+# datasets/ holds WeavEHR table configs and concept mappings added for YAIB (as ricu-extensions/configs does
+# for ricu); weavehr_build.py loads them ahead of WeavEHR's own.
+
+sources:
+  mimic-iv: &mimic-iv
+    id_columns: [stay_id, hadm_id]
+    icu_admission: icustay/icu_admission
+    icu_discharge: icustay/icu_discharge
+    death_icu:
+      deaths: yaib_admissions/DEATH
+      transfers: transfers/TRANSFER_TO
+    abx_duration:
+      - events: inputevents/INFUSION_END
+        end: time
+        duration_minutes: duration_minutes
+        code: "^INFUSION_END//(225798|225837|225838|225840|225842|225843|225844|225845|225847|225848|225850|225851|225853|225855|225857|225859|225860|225862|225863|225865|225866|225868|225869|225871|225873|225875|225876|225877|225879|225881|225882|225883|225884|225885|225886|225888|225889|225890|225892|225893|225895|225896|225897|225898|225899|225900|225902|225903|225905|227691|228003)//"
+  mimic-iv-demo: *mimic-iv
+  eicu-crd: &eicu-crd
+    id_columns: [stay_id]
+    icu_admission: patient/ICU_ADMISSION
+    icu_discharge: patient/ICU_DISCHARGE
+    death_icu:
+      discharge_status: yaib_patient/UNIT_DISCHARGE_STATUS
+      died: Expired
+    hospital_id: yaib_patient/HOSPITAL_ID
+    abx_duration:
+      - events: infusiondrug/INFUSION
+        code: "(?i)(bactrim|cipro|flagyl|metronidazole|zithromax|zosyn|(((amika|cleo|ofloxa)|(azithro|clinda|tobra|vanco)my)c|(ampi|oxa|peni|pipera)cill|cefazol|levaqu|rifamp)in)"
+      - events: medication/MEDICATION_ORDER
+        start: prescribed_start
+        end: prescribed_end
+        code: "(?i)(cipro|flagyl|maxipime|metronidazole|tazobactam|zosyn|cef(azolin|epime)|(((azithro|clinda|vanco)my|ofloxa|vanco)c|levaqu|piperacill|roceph)in)"
+  eicu-demo: *eicu-crd
+  hirid:
+    # stays are patients; a stay ends with the patient's last observation
+    id_columns: []
+    icu_admission: general/ICU_ADMISSION
+    icu_discharge: {last_of: observations/OBSERVATION}
+    death_icu:
+      last_of: observations/OBSERVATION
+      code: "^OBSERVATION//(110|200)(//|$)"
+      status: general/MORTALITY
+      died: dead
+    abx_duration:
+      - events: pharma/PHARMA
+        code: "^PHARMA//(163|176|181|186|189|300|326|331|351|405|1000234|1000272|1000273|1000274|1000284|1000299|1000300|1000302|1000304|1000305|1000306|1000315|1000317|1000318|1000320|1000321|1000322|1000335|1000348|1000352|1000363|1000365|1000390|1000407|1000408|1000424|1000425|1000426|1000437|1000483|1000507|1000508|1000518|1000519|1000549|1000601|1000648|1000666|1000670|1000671|1000760|1000781|1000791|1000797|1000812|1000825|1000829|1000830|1000837|1000838|1000854|1000855|1000893|1000894|1001005|1001068|1001075|1001079|1001084|1001086|1001095|1001096|1001097|1001098|1001168|1001169|1001170|1001171|1001173|1001193|1001198)(//|$)"
+  aumc:
+    id_columns: [visit_occurrence_id]
+    icu_admission: visit_occurrence/VISIT_START
+    icu_discharge: visit_occurrence/VISIT_END
+    # Not verified on data: assumes the OMOP export keeps AmsterdamUMCdb's discharge destination ("Overleden").
+    # Antibiotics are not configured: they are OMOP drug concepts, not AmsterdamUMCdb's drug itemids.
+    death_icu:
+      discharge_status: visit_occurrence/VISIT_END
+      status_column: discharged_to_source_value
+      died: Overleden
+      death: death/MEDS_DEATH
+      within_hours: 24

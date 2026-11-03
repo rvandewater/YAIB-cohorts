@@ -1,0 +1,10 @@
+# Lymphocyte count (ricu: lymph with blood_cell_ratio, applied in Python/src/weavehr.py).
+type: simple
+mappings:
+  - pattern:
+      table: observations
+      event: OBSERVATION
+      code: "^(24000480)(//.*)?$"
+    columns:
+      numeric_value: col(numeric_value)
+      text_value: col(text_value)

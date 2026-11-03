@@ -1,0 +1,10 @@
+# As ricu, which YAIB uses as reference, also counts "TF Residual" (227510) as urine output.
+type: simple
+mappings:
+  - pattern:
+      table: outputevents
+      event: FLUID_OUTPUT
+      code: (226557(//.*)?|226558(//.*)?|226559(//.*)?|226560(//.*)?|226561(//.*)?|226563(//.*)?|226564(//.*)?|226565(//.*)?|226566(//.*)?|226567(//.*)?|226584(//.*)?|227510(//.*)?)
+    columns:
+      numeric_value: col(numeric_value)
+      text_value: col(text_value)

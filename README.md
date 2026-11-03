@@ -66,6 +66,8 @@ Once you have cloned the repo, all cohorts can be created directly from within R
 - Python: [README.md](Python/README.md)  
 New: We also provide a [Docker image](https://github.com/rvandewater/YAIB-cohorts/tree/main/docker) to simplify things.
 
+From Python, the cohorts can alternatively be extracted with [WeavEHR](https://github.com/aidh-ms/WeavEHR) instead of `ricu` (MIMIC-IV, eICU, HiRID, AmsterdamUMCdb), see the [Python README](Python/README.md).
+
 Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally from those published in the benchmarking paper.
 
 ## Clairvoyance Conversion

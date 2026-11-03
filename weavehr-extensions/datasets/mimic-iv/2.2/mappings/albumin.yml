@@ -1,0 +1,10 @@
+# YAIB adds the lab item 53085 (albumin) to ricu (ricu-extensions/configs/chemistry).
+type: simple
+mappings:
+  - pattern:
+      table: labevents
+      event: LAB
+      code: (50862(//.*)?|53085(//.*)?)
+    columns:
+      numeric_value: col(numeric_value)
+      text_value: col(text_value)

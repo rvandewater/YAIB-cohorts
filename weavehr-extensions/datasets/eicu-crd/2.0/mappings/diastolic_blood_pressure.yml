@@ -1,0 +1,15 @@
+# YAIB adds non-invasive blood pressure (ricu-extensions/configs/vitals).
+type: simple
+mappings:
+- pattern:
+    table: vitalperiodic
+    event: DIASTOLIC_BLOOD_PRESSURE
+    code: ^VITALS_PERIODIC//mmHg$
+  columns: &columns
+    numeric_value: col(numeric_value)
+    text_value: col(text_value)
+- pattern:
+    table: vitalaperiodic
+    event: NON_INVASIVE_DIASTOLIC_BLOOD_PRESSURE
+    code: ^VITALS_APERIODIC$
+  columns: *columns

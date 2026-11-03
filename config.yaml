@@ -1,2 +1,7 @@
 ricu_data_path: "/home/ruser/data"
-out_dir: "../data" 
+# may contain {backend}, e.g., "../data/{backend}", to keep ricu and WeavEHR outputs apart
+out_dir: "../data"
+# Data backend: "ricu" or "weavehr" (see Python/README.md)
+backend: "ricu"
+# WeavEHR project per dataset ({src}), written by Python/weavehr_build.py
+weavehr_project_path: "../../weavehr-projects/{src}"

@@ -1,0 +1,29 @@
+# Admission fields used by YAIB that WeavEHR's admissions table does not extract: the time of death (death_icu).
+path: hosp/admissions.csv.gz
+
+columns:
+  - name: subject_id
+    type: int64
+  - name: hadm_id
+    type: int64
+  - name: deathtime
+    type: datetime
+    params:
+      format: "%Y-%m-%d %H:%M:%S"
+  - name: hospital_expire_flag
+    type: int64
+
+event_defaults:
+  subject_id: col(subject_id)
+  extension:
+    hadm_id: col(hadm_id)
+
+events:
+  - name: DEATH
+    columns:
+      time: col(deathtime)
+      code:
+        - const("DEATH")
+      numeric_value: col(hospital_expire_flag)
+    filters:
+      - drop_na(time)

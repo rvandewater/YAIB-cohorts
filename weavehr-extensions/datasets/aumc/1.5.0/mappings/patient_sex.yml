@@ -1,0 +1,15 @@
+# Sex from the OMOP gender concepts (ricu: admissions.gender, Vrouw/Man).
+type: simple
+mappings:
+  - pattern:
+      table: person
+      event: GENDER
+      code: "^GENDER//8507(//.*)?$"
+    columns:
+      text_value: const("Male")
+  - pattern:
+      table: person
+      event: GENDER
+      code: "^GENDER//8532(//.*)?$"
+    columns:
+      text_value: const("Female")
