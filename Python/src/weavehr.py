@@ -507,17 +507,18 @@ def _sep3_alt(src: str, si_mode: str = "and", si_lwr: int = 48, si_upr: int = 24
     """Sepsis-3 onset (`sep3_alt`, ricu `sep3`): first SOFA increase >= 2 over its running minimum within
     [-48h, +24h] of the first suspected infection.
 
-    WeavEHR's SOFA is recorded at changes, so it is carried forward between hours.
+    WeavEHR's SOFA is recorded at changes, so it is carried forward between hours. Only the hours of that window
+    between the first and the last SOFA of the stay are used (WeavEHR's SOFA is not limited to the ICU stay, so
+    a grid over all its hours can span years).
     """
-    sofa = _load(src, "sofa")
-    hours_grid = (sofa.group_by("stay_id").agg(pl.int_range(pl.col("time").min(), pl.col("time").max() + 1).alias("time"))
-                  .explode("time"))
-    sofa = (hours_grid.join(sofa, on=["stay_id", "time"], how="left").sort("stay_id", "time")
-            .with_columns(pl.col("sofa").forward_fill().over("stay_id")))
-
+    sofa = _load(src, "sofa").sort("time")
     si = _susp_inf_alt(src, si_mode).group_by("stay_id").agg(pl.col("time").min().alias("si"))
-    res = (sofa.join(si, on="stay_id")
-           .filter(pl.col("time").is_between(pl.col("si") - si_lwr, pl.col("si") + si_upr))
+    hours = (sofa.group_by("stay_id").agg(pl.col("time").min().alias("first"), pl.col("time").max().alias("last"))
+             .join(si, on="stay_id")
+             .select("stay_id", "si", pl.int_ranges(pl.max_horizontal(pl.col("si") - si_lwr, "first"),
+                                                    pl.min_horizontal(pl.col("si") + si_upr, "last") + 1).alias("time"))
+             .explode("time").drop_nulls("time").sort("time"))
+    res = (hours.join_asof(sofa, on="time", by="stay_id", strategy="backward", check_sortedness=False)
            .sort("stay_id", "time")
            .with_columns((pl.col("sofa") - pl.col("sofa").cum_min().over("stay_id")).alias("delta_sofa")))
     return (res.filter(pl.col("delta_sofa") >= sofa_thresh)
