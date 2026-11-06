@@ -507,18 +507,14 @@ def _sep3_alt(src: str, si_mode: str = "and", si_lwr: int = 48, si_upr: int = 24
     """Sepsis-3 onset (`sep3_alt`, ricu `sep3`): first SOFA increase >= 2 over its running minimum within
     [-48h, +24h] of the first suspected infection.
 
-    WeavEHR's SOFA is recorded at changes, so it is carried forward between hours. Only the hours of that window
-    between the first and the last SOFA of the stay are used (WeavEHR's SOFA is not limited to the ICU stay, so
-    a grid over all its hours can span years).
+    WeavEHR evaluates SOFA only at its component events and emits no event when a score leaves its 24h window,
+    so a score is not valid until the next event and is not carried forward: as in WeavEHR's Sepsis3Transformer,
+    only the hours of that window with a SOFA event are compared.
     """
-    sofa = _load(src, "sofa").sort("time")
+    sofa = _load(src, "sofa")
     si = _susp_inf_alt(src, si_mode).group_by("stay_id").agg(pl.col("time").min().alias("si"))
-    hours = (sofa.group_by("stay_id").agg(pl.col("time").min().alias("first"), pl.col("time").max().alias("last"))
-             .join(si, on="stay_id")
-             .select("stay_id", "si", pl.int_ranges(pl.max_horizontal(pl.col("si") - si_lwr, "first"),
-                                                    pl.min_horizontal(pl.col("si") + si_upr, "last") + 1).alias("time"))
-             .explode("time").drop_nulls("time").sort("time"))
-    res = (hours.join_asof(sofa, on="time", by="stay_id", strategy="backward", check_sortedness=False)
+    res = (sofa.join(si, on="stay_id")
+           .filter(pl.col("time").is_between(pl.col("si") - si_lwr, pl.col("si") + si_upr))
            .sort("stay_id", "time")
            .with_columns((pl.col("sofa") - pl.col("sofa").cum_min().over("stay_id")).alias("delta_sofa")))
     return (res.filter(pl.col("delta_sofa") >= sofa_thresh)
