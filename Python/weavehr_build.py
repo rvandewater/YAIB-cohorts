@@ -40,13 +40,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     dataset = {'name': args.src, 'version': args.version}
-    # the source event and code of concept rows, to look up the ICU stay they were recorded for
-    source = {'extension_columns': {'event': 'col("event")', 'source_code': 'col("code")'}}
     steps = {
         'extraction': {'name': 'Extraction', 'version': '1.0.0', 'overwrite': args.overwrite,
                        'config': {'data': [{**dataset, 'path': str(Path(args.data_path).resolve())}]}},
         'concept': {'name': 'Concept', 'version': '1.0.0', 'overwrite': args.overwrite,
-                    'config': {'extraction_step': 'Extraction', 'mapping_configs': [{**dataset, **source}]}},
+                    'config': {'extraction_step': 'Extraction', 'mapping_configs': [dataset]}},
     }
 
     configure_logging(level="INFO")
