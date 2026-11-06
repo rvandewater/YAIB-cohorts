@@ -1,0 +1,10 @@
+# As ricu: calcium in mmol/l is converted to mg/dL.
+type: simple
+mappings:
+  - pattern:
+      table: lab
+      event: LAB
+      code: ^calcium//.*$
+    columns:
+      numeric_value: replace((labmeasurenameinterface == "mmol/L") or (labmeasurenameinterface == "mmol/l") or (labmeasurenameinterface == "MMOL/L") or (labmeasurenameinterface == "MMOL/l"), numeric_value * 4, numeric_value)
+      text_value: col(text_value)

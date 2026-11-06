@@ -1,0 +1,10 @@
+# As ricu: magnesium in mEq/L is converted to mg/dL.
+type: simple
+mappings:
+  - pattern:
+      table: lab
+      event: LAB
+      code: ^(magnesium)(//.*)?$
+    columns:
+      numeric_value: replace((labmeasurenameinterface == "mEq/L") or (labmeasurenameinterface == "meq/L") or (labmeasurenameinterface == "MEQ/L") or (labmeasurenameinterface == "mEq/l") or (labmeasurenameinterface == "meq/l") or (labmeasurenameinterface == "MEQ/l"), numeric_value / 1.215, numeric_value)
+      text_value: col(text_value)

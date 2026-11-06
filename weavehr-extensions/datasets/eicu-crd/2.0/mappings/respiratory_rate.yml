@@ -1,0 +1,15 @@
+# YAIB adds nurse-charted respiratory rates for eICU-CRD, not for the demo (ricu-extensions/configs/vitals).
+type: simple
+mappings:
+- pattern:
+    table: vitalperiodic
+    event: RESPIRATORY_RATE
+    code: ^VITALS_PERIODIC//bpm$
+  columns: &columns
+    numeric_value: col(numeric_value)
+    text_value: col(text_value)
+- pattern:
+    table: nursecharting
+    event: NURSE_CHART
+    code: ^NURSE_CHART//Vital Signs//Respiratory Rate//Respiratory Rate$
+  columns: *columns

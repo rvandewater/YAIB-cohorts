@@ -1,0 +1,19 @@
+# As ricu (percent_as_numeric): charted FiO2 values like "40%" are read as numbers. The first of the leading 4, 3,
+# 2 and 1 characters that is a number is used ("45.5%" -> 45.5, "100%" -> 100, "40%" -> 40).
+type: simple
+mappings:
+  - pattern:
+      table: respiratorycharting
+      event: RESPIRATORY_CHART
+      code: (FiO2(//.*)?)
+    columns:
+      numeric_value: >-
+        replace(numeric_value > -1, numeric_value, replace(cast(slice_str(text_value, 0, 4), "float64") > -1, cast(slice_str(text_value, 0, 4), "float64"), replace(cast(slice_str(text_value, 0, 3), "float64") > -1, cast(slice_str(text_value, 0, 3), "float64"), replace(cast(slice_str(text_value, 0, 2), "float64") > -1, cast(slice_str(text_value, 0, 2), "float64"), cast(slice_str(text_value, 0, 1), "float64")))))
+      text_value: col(text_value)
+  - pattern:
+      table: lab
+      event: LAB
+      code: ^(FiO2)(//.*)?$
+    columns:
+      numeric_value: col(numeric_value)
+      text_value: col(text_value)

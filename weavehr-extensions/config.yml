@@ -1,0 +1,82 @@
+# Configuration of the concepts loaded from WeavEHR (Python/src/weavehr.py), the counterpart of ricu-extensions/.
+#
+# concepts: YAIB concept name -> WeavEHR concept (or a list whose rows are pooled). Time series are aggregated
+#   per time bin (aggregate, default: median); static: true marks per-stay concepts (ricu target id_tbl), which
+#   take the last value recorded up to the end of the stay; text: true takes the text value.
+#   The outcomes los_icu, death_icu, aki and sep3 are defined in Python/src/weavehr.py.
+
+concepts:
+  alb: {weavehr: albumin}
+  alp: {weavehr: alkaline_phosphatase}
+  alt: {weavehr: alanine_aminotransferase}
+  ast: {weavehr: aspartate_aminotransferase}
+  be: {weavehr: base_excess}
+  bicar: {weavehr: bicarbonate}
+  bili: {weavehr: total_bilirubin}
+  bili_dir: {weavehr: bilirubin_direct}
+  bnd: {weavehr: band_form_neutrophils}
+  bun: {weavehr: blood_urea_nitrogen}
+  ca: {weavehr: calcium}
+  cai: {weavehr: calcium_ionized}
+  ck: {weavehr: creatine_kinase}
+  ckmb: {weavehr: creatine_kinase_MB}
+  cl: {weavehr: chloride}
+  crea: {weavehr: creatinine}
+  crp: {weavehr: C_reactive_protein}
+  dbp: {weavehr: diastolic_blood_pressure}
+  fgn: {weavehr: fibrinogen}
+  fio2: {weavehr: fraction_of_inspired_oxygen}
+  glu: {weavehr: glucose}
+  hgb: {weavehr: hemoglobin}
+  hr: {weavehr: heart_rate}
+  inr_pt: {weavehr: prothrombin_time_international_normalized_ratio}
+  k: {weavehr: potassium}
+  lact: {weavehr: lactate}
+  lymph: {weavehr: lymphocytes}
+  map: {weavehr: mean_arterial_pressure}
+  mch: {weavehr: mean_corpuscular_hemoglobin}
+  mchc: {weavehr: mean_corpuscular_hemoglobin_concentration}
+  mcv: {weavehr: mean_corpuscular_volume}
+  methb: {weavehr: methemoglobin}
+  mg: {weavehr: magnesium}
+  na: {weavehr: sodium}
+  neut: {weavehr: neutrophils}
+  o2sat: {weavehr: [oxygen_saturation, arterial_oxygen_saturation]}
+  pco2: {weavehr: CO2_partial_pressure}
+  ph: {weavehr: pH_of_blood}
+  phos: {weavehr: phosphate}
+  plt: {weavehr: platelet_count}
+  po2: {weavehr: O2_partial_pressure}
+  ptt: {weavehr: partial_thromboplastin_time}
+  resp: {weavehr: respiratory_rate}
+  sbp: {weavehr: systolic_blood_pressure}
+  temp: {weavehr: temperature}
+  tnt: {weavehr: troponin_t}
+  urine: {weavehr: urine_output, aggregate: sum}
+  wbc: {weavehr: white_blood_cell_count}
+  age: {weavehr: patient_age, static: true}
+  sex: {weavehr: patient_sex, static: true, text: true}
+  height: {weavehr: patient_height, static: true}
+  weight: {weavehr: patient_weight, static: true}
+
+# sources: per WeavEHR dataset, the column identifying ICU stays and the admission and discharge events of the
+#   stays in the extraction output (<table>/<event>).
+#
+# datasets/ holds WeavEHR table configs and concept mappings added for YAIB (as ricu-extensions/configs does
+# for ricu); weavehr_build.py loads them ahead of WeavEHR's own.
+
+sources:
+  mimic-iv: &mimic-iv
+    stay_id: stay_id
+    icu_admission: icustay/icu_admission
+    icu_discharge: icustay/icu_discharge
+  mimic-iv-demo: *mimic-iv
+  eicu-crd: &eicu-crd
+    stay_id: stay_id
+    icu_admission: patient/ICU_ADMISSION
+    icu_discharge: patient/ICU_DISCHARGE
+  eicu-demo: *eicu-crd
+  aumc:
+    stay_id: visit_occurrence_id
+    icu_admission: visit_occurrence/VISIT_START
+    icu_discharge: visit_occurrence/VISIT_END

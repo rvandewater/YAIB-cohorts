@@ -1,0 +1,13 @@
+# As ricu, which YAIB uses as reference, also counts the "SpO2 Desat Limit" alarm setting (226253).
+type: simple
+mappings:
+  - pattern:
+      table: chartevents
+      event: CHART
+      code: (220277(//.*)?|226253(//.*)?)
+    columns:
+      numeric_value: col(numeric_value)
+      text_value: col(text_value)
+    filters:
+      - drop_na(numeric_value)
+      - drop_if(col(numeric_value) < 0 or col(numeric_value) > 100)

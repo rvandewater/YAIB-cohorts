@@ -1,0 +1,22 @@
+# YAIB adds nurse-charted temperatures (ricu-extensions/configs/vitals).
+type: simple
+mappings:
+- pattern:
+    table: vitalperiodic
+    event: TEMPERATURE
+    code: ^VITALS_PERIODIC//C$
+  columns: &columns
+    numeric_value: col(numeric_value)
+    text_value: col(text_value)
+- pattern:
+    table: nursecharting
+    event: NURSE_CHART
+    code: ^NURSE_CHART//Vital Signs//Temperature//Temperature \(C\)$
+  columns: *columns
+- pattern:
+    table: nursecharting
+    event: NURSE_CHART
+    code: ^NURSE_CHART//Vital Signs//Temperature//Temperature \(F\)$
+  columns:
+    numeric_value: (col(numeric_value) - 32) * 5 / 9
+    text_value: col(text_value)

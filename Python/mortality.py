@@ -10,8 +10,8 @@ from src.steps import (
     AggStep, FilterStep, TransformStep, CustomStep, DropStep, RenameStep,
     Pipeline
 )
-from src.ricu import stay_windows, hours
-from src.ricu_utils import (
+from src.weavehr import stay_windows
+from src.cohort_utils import (
     stop_window_at, make_grid_mapper, make_patient_mapper,
     n_obs_per_row, longest_rle
 )
@@ -82,7 +82,7 @@ def create_mortality_task(args):
     # Task-specific exclusion criteria
     excl6 = SelectionCriterion('Died within the first 30 hours of ICU admission')
     excl6.add_step([
-        LoadStep('death_icu', src=args.src, interval=hours(1), cache=True),
+        LoadStep('death_icu', src=args.src, cache=True),
         FilterStep('death_icu', lambda x: x == True),
         FilterStep('time', lambda x: x < 30)
     ])
@@ -130,8 +130,8 @@ def create_mortality_task(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src', default='mimic_demo', help='name of datasource',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv'])
+    parser.add_argument('--src', default='mimic-iv-demo', help='name of the WeavEHR dataset',
+                        choices=['mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo', 'hirid', 'aumc'])
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_mortality_task(args)
