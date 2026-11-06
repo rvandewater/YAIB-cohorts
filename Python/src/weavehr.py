@@ -1,15 +1,18 @@
 """ICU stays and clinical concepts for the cohort scripts, loaded from WeavEHR.
 
 Reads a WeavEHR project built with `weavehr_build.py` and returns tables in the form of those returned by
-`ricu::stay_windows()` and `ricu::load_concepts()` at an hourly interval: one row per ICU stay (`stay_id`) and hour since
-ICU admission (`time`, floored), or one row per stay for static concepts. ICU stays without a discharge
-time are left out (as ricu does for HiRID patients without observations).
+`ricu::stay_windows()` and `ricu::load_concepts()`: one row per ICU stay (`stay_id`) and time bin, or one row
+per stay for static concepts. Time bins are one hour unless `interval` is given (e.g., "30min" or "2h"); `time`
+is the start of the bin in hours since ICU admission (whole hours if the interval is, as in ricu: floored). ICU
+stays without a discharge time are left out (as ricu does for HiRID patients without observations).
 
 As in ricu, each concept row is attached to ICU stays through the most specific ID of its source table:
 static concepts to all stays of that ID, time series within that ID to the first stay ending at or after
 the row (rows after the last stay go to the last stay). Rows outside the concept's value range are dropped
-and the rest is aggregated per hour. Concepts are configured in ../weavehr-extensions/config.yml; los_icu,
-hospital_id, death_icu, aki and sep3_alt are ports of ricu and ../ricu-extensions/callbacks.
+and the rest is aggregated per time bin. Concepts are configured in ../weavehr-extensions/config.yml; los_icu,
+hospital_id, death_icu, aki and sep3_alt are ports of ricu and ../ricu-extensions/callbacks. aki and sep3_alt
+are defined on an hourly grid (their windows and rates are in hours), so they are computed hourly and each
+event is put in the bin of its hour.
 """
 from functools import cache
 from pathlib import Path
@@ -37,13 +40,30 @@ AGGREGATE = {
 CHUNK_ROWS = 10_000_000
 
 
-def hours(x: int) -> pd.Timedelta:
-    return pd.Timedelta(hours=x)
+HOUR = pd.Timedelta(hours=1)
 
 
-def _check_interval(interval) -> None:
-    if interval is not None and pd.Timedelta(interval) != hours(1):
-        raise NotImplementedError("The WeavEHR backend only supports an interval of hours(1).")
+def _interval(interval) -> pd.Timedelta:
+    """Width of the time bins: a duration such as "30min", "2h" or a timedelta. Defaults to one hour."""
+    if interval is None:
+        return HOUR
+    if isinstance(interval, (int, float)):
+        raise TypeError(f"interval must be a duration such as '2h' or pd.Timedelta(hours=2), got {interval!r}.")
+    res = pd.Timedelta(interval)
+    if res <= pd.Timedelta(0) or res % pd.Timedelta(microseconds=1):
+        raise ValueError(f"interval must be a positive whole number of microseconds, got {interval!r}.")
+    return res
+
+
+def _us(interval: pd.Timedelta) -> int:
+    return interval // pd.Timedelta(microseconds=1)
+
+
+def _hours(bins: pl.Expr, interval: pd.Timedelta) -> pl.Expr:
+    """Start of the time bins numbered `bins`, in hours since ICU admission; whole hours if the interval is."""
+    if interval % HOUR == pd.Timedelta(0):
+        return bins * (interval // HOUR)
+    return bins * (interval / HOUR)
 
 
 # ------------------------------------------------------------------------------
@@ -94,8 +114,8 @@ def _stays(src: str) -> pl.DataFrame:
 
 
 def _stay_minutes(src: str) -> pl.DataFrame:
-    """Stay ID and length of stay in minutes, as in ricu's stay windows: from minute-floored times, or from the
-    admission when stays end with the last event (HiRID)."""
+    """Stay ID and length of stay in minutes (los_icu): from minute-floored times, or from the admission when
+    stays end with the last event (HiRID)."""
     if isinstance(_source(src)[0]["icu_discharge"], dict):
         minutes = (pl.col("outtime") - pl.col("intime")).dt.total_seconds() // 60
     else:
@@ -104,9 +124,13 @@ def _stay_minutes(src: str) -> pl.DataFrame:
 
 
 def stay_windows(src: str, interval=None) -> pd.DataFrame:
-    """Observation times (in hours since ICU admission) for all ICU stays of a dataset."""
-    _check_interval(interval)
-    res = _stay_minutes(src).select("stay_id", pl.lit(0).alias("start"), (pl.col("minutes") // 60).alias("end"))
+    """Observation times of all ICU stays of a dataset: the start of their first (`start`) and last (`end`) time
+    bin of `interval` (default: one hour), in hours since ICU admission. As in ricu, the last bin is that of the
+    length of stay (from the admission and discharge times, not floored to minutes)."""
+    interval = _interval(interval)
+    end = (pl.col("outtime") - pl.col("intime")).dt.total_microseconds() // _us(interval)
+    res = _stays(src).select(pl.col(_stay_column(src)).alias("stay_id"), _hours(pl.lit(0), interval).alias("start"),
+                             _hours(end, interval).alias("end"))
     return res.to_pandas()
 
 
@@ -176,12 +200,12 @@ def _with_ids(src: str, rows: pl.LazyFrame, table: str, event: str | None) -> tu
     return rows.drop("code", "row", strict=False), level
 
 
-def _attach(rows: pl.DataFrame, src: str, level: str | None, static: bool) -> pl.DataFrame:
+def _attach(rows: pl.DataFrame, src: str, level: str | None, static: bool, interval: pd.Timedelta = HOUR) -> pl.DataFrame:
     """Attach rows with `subject_id`, `time` and the `level` ID column to ICU stays (ricu's `change_id()`).
 
     Rows without an ID are dropped. Static rows are attached to all stays of their ID; time series rows to
-    the first stay of their ID that ends at or after the row, else to the last one, and get `time` in hours
-    since ICU admission.
+    the first stay of their ID that ends at or after the row, else to the last one, and get `time` as the
+    number of the time bin of `interval` since ICU admission (floored).
     """
     stay = _stay_column(src)
     key = level or "subject_id"
@@ -201,7 +225,7 @@ def _attach(rows: pl.DataFrame, src: str, level: str | None, static: bool) -> pl
 
     if not static:
         res = res.sort("time", maintain_order=True).with_columns(
-            ((pl.col("time") - pl.col("intime")).dt.total_microseconds() // 3_600_000_000).alias("time"))
+            ((pl.col("time") - pl.col("intime")).dt.total_microseconds() // _us(interval)).alias("time"))
     return res.select(pl.col(stay).alias("stay_id"), *keep)
 
 
@@ -242,12 +266,12 @@ def _weavehr_rows(src: str, weavehr: str, schema: pl.Schema) -> pl.LazyFrame:
             .cast(schema).with_columns(_decimal(pl.col("numeric_value"))))
 
 
-def _event_chunks(src: str, name: str, static: bool) -> Iterator[pl.DataFrame]:
+def _event_chunks(src: str, name: str, static: bool, interval: pd.Timedelta = HOUR) -> Iterator[pl.DataFrame]:
     """Rows of the configured concept `name`, attached to ICU stays one source table and event at a time.
 
     Concepts with more than CHUNK_ROWS rows are attached in chunks of subjects, so that all rows of a stay are in
     the same chunk. Rows without a source table (e.g., scores computed by WeavEHR) are attached like rows of a
-    patient-level table. With `item_order`, the rows of each hour are ordered by item (ricu: items are appended).
+    patient-level table. With `item_order`, the rows of each time bin are ordered by item (ricu: items are appended).
     """
     rows = _concept_rows(src, name)
     item_order = _concept_cfg(src, name).get("item_order", [])
@@ -267,23 +291,23 @@ def _event_chunks(src: str, name: str, static: bool) -> Iterator[pl.DataFrame]:
                 part, level = part.drop("source_code").collect(engine="streaming"), None
             else:
                 part, level = _with_ids(src, part, table, event)
-            parts.append(_attach(part, src, level, static))
-        res = pl.concat(parts) if parts else _attach(chunk.drop("table", "event", "source_code").collect(), src, None, static)
+            parts.append(_attach(part, src, level, static, interval))
+        res = pl.concat(parts) if parts else _attach(chunk.drop("table", "event", "source_code").collect(), src, None, static, interval)
         if item_order and not static:
             res = res.sort("stay_id", "time", "item", maintain_order=True).drop("item")
         yield res
 
 
-def _events(src: str, name: str, static: bool) -> pl.DataFrame:
+def _events(src: str, name: str, static: bool, interval: pd.Timedelta = HOUR) -> pl.DataFrame:
     """Rows of the configured concept `name`, attached to ICU stays."""
-    return pl.concat(_event_chunks(src, name, static))
+    return pl.concat(_event_chunks(src, name, static, interval))
 
 
 def _aggregate(cfg: dict, events: pl.DataFrame, name: str, static: bool, other: pl.DataFrame | None) -> pl.DataFrame:
-    """Values of concept `name` within its range, aggregated per stay (static) or per stay and hour.
+    """Values of concept `name` within its range, aggregated per stay (static) or per stay and time bin.
 
     `cumulative`: values are running totals; each record counts its increase (`hirid_urine`).
-    `ratio_to`: values are counts, relative to the concept `other` of the same hour in % (`blood_cell_ratio`).
+    `ratio_to`: values are counts, relative to the concept `other` of the same time bin in % (`blood_cell_ratio`).
     """
     keys = ["stay_id"] if static else ["stay_id", "time"]
     if "values" in cfg:
@@ -306,13 +330,14 @@ def _aggregate(cfg: dict, events: pl.DataFrame, name: str, static: bool, other: 
     return res.group_by(keys, maintain_order=True).agg(AGGREGATE[fun](pl.col(name))).sort(keys)
 
 
-def _load(src: str, name: str) -> pl.DataFrame:
-    """Concept `name` aggregated per stay (static) or per stay and hour, one chunk of subjects at a time."""
+def _load(src: str, name: str, interval: pd.Timedelta = HOUR) -> pl.DataFrame:
+    """Concept `name` aggregated per stay (static) or per stay and time bin, one chunk of subjects at a time."""
     cfg = _concept_cfg(src, name)
     static = cfg.get("static", False)
-    other = _load(src, cfg["ratio_to"]) if "ratio_to" in cfg else None
+    other = _load(src, cfg["ratio_to"], interval) if "ratio_to" in cfg else None
     keys = ["stay_id"] if static else ["stay_id", "time"]
-    return pl.concat([_aggregate(cfg, events, name, static, other) for events in _event_chunks(src, name, static)]).sort(keys)
+    chunks = _event_chunks(src, name, static, interval)
+    return pl.concat([_aggregate(cfg, events, name, static, other) for events in chunks]).sort(keys)
 
 
 # ------------------------------------------------------------------------------
@@ -340,7 +365,7 @@ def _hospital_id(src: str) -> pl.DataFrame:
     return _attach(ev, src, level, static=True).group_by("stay_id").agg(pl.col("hospital_id").first()).sort("stay_id")
 
 
-def _death_icu(src: str) -> pl.DataFrame:
+def _death_icu(src: str, interval: pd.Timedelta = HOUR) -> pl.DataFrame:
     """ICU mortality, depending on the dataset.
 
     MIMIC-IV (`miiv_death_icu`): admissions with a time of death; true for in-hospital deaths whose last ward
@@ -360,7 +385,7 @@ def _death_icu(src: str) -> pl.DataFrame:
             ev = ev.join(death, on="subject_id", how="left").with_columns((pl.col("death_icu") & ~later).alias("death_icu")).drop("death")
         if not ev["death_icu"].any():
             print(f"WARNING: no ICU deaths found for {src}; check death_icu in weavehr-extensions/config.yml.")
-        return _attach(ev, src, level, static=False).group_by("stay_id", "time").agg(pl.col("death_icu").any()).sort("stay_id", "time")
+        return _attach(ev, src, level, False, interval).group_by("stay_id", "time").agg(pl.col("death_icu").any()).sort("stay_id", "time")
 
     if "last_of" in cfg:
         root = _source(src)[1]
@@ -369,7 +394,7 @@ def _death_icu(src: str) -> pl.DataFrame:
         last = (pl.scan_parquet(root / f"{cfg['last_of']}.parquet").filter(pl.col("code").str.contains(cfg["code"]))
                 .join(dead.lazy(), on="subject_id", how="semi").group_by("subject_id").agg(pl.col("time").max()).collect(engine="streaming"))
         level = _id_column(src, cfg["last_of"].split("/")[0])
-        return _attach(last.with_columns(pl.lit(True).alias("death_icu")), src, level, static=False).sort("stay_id", "time")
+        return _attach(last.with_columns(pl.lit(True).alias("death_icu")), src, level, False, interval).sort("stay_id", "time")
 
     root = _source(src)[1]
     transfers = (pl.read_parquet(root / f"{cfg['transfers']}.parquet", columns=["subject_id", "hadm_id", "time", "code"])
@@ -386,7 +411,7 @@ def _death_icu(src: str) -> pl.DataFrame:
     deaths = (pl.read_parquet(root / f"{cfg['deaths']}.parquet", columns=["subject_id", "hadm_id", "time", "numeric_value"])
               .select("subject_id", "hadm_id", "time",
                       ((pl.col("numeric_value") == 1) & ~pl.col("hadm_id").is_in(non_icu.implode())).alias("death_icu")))
-    return (_attach(deaths, src, "hadm_id", static=False)
+    return (_attach(deaths, src, "hadm_id", False, interval)
             .group_by("stay_id", "time").agg(pl.col("death_icu").any()).sort("stay_id", "time"))
 
 
@@ -522,12 +547,21 @@ def _sep3_alt(src: str, si_mode: str = "and", si_lwr: int = 48, si_upr: int = 24
             .with_columns(pl.lit(True).alias("sep3_alt")).sort("stay_id"))
 
 
+def _rebin(hourly: pl.DataFrame, interval: pd.Timedelta) -> pl.DataFrame:
+    """Events computed on the hourly grid, each in the time bin of `interval` that its hour starts in."""
+    if interval == HOUR:
+        return hourly
+    bins = pl.col("time") * _us(HOUR) // _us(interval)
+    return hourly.with_columns(bins.alias("time")).unique(["stay_id", "time"], keep="first", maintain_order=True)
+
+
+# outcome concepts by name, from the source, the time bins and the keyword arguments of load_concepts
 DERIVED = {
-    "los_icu": _los_icu,
-    "hospital_id": _hospital_id,
-    "death_icu": _death_icu,
-    "aki": _aki,
-    "sep3_alt": _sep3_alt,
+    "los_icu": lambda src, interval, **kwargs: _los_icu(src),
+    "hospital_id": lambda src, interval, **kwargs: _hospital_id(src),
+    "death_icu": lambda src, interval, **kwargs: _death_icu(src, interval),
+    "aki": lambda src, interval, **kwargs: _rebin(_aki(src), interval),
+    "sep3_alt": lambda src, interval, **kwargs: _rebin(_sep3_alt(src, **kwargs), interval),
 }
 
 
@@ -540,24 +574,28 @@ def load_concepts(concepts: str | List[str], src: str, interval=None, **kwargs) 
     Args:
         concepts: name of one or more concepts
         src: name of the WeavEHR dataset
-        interval: only hours(1) is supported. Defaults to None (hourly).
-        **kwargs: passed to the outcome concepts, e.g., `si_mode` of sep3_alt.
+        interval: width of the time bins, a duration such as "30min", "2h" or a timedelta. Defaults to one hour.
+        **kwargs: passed to sep3_alt, e.g., `si_mode`.
 
     Returns:
-        pandas.DataFrame with `stay_id`, `time` (if any concept is a time series) and one column per concept.
+        pandas.DataFrame with `stay_id`, `time` (if any concept is a time series: the start of the time bin in
+        hours since ICU admission) and one column per concept.
     """
-    _check_interval(interval)
+    interval = _interval(interval)
     names = [concepts] if isinstance(concepts, str) else list(concepts)
     unknown = [name for name in names if name not in ext["concepts"] and name not in DERIVED]
     if unknown:
-        raise ValueError(f"Unknown concepts for the WeavEHR backend: {unknown}")
+        raise ValueError(f"Unknown concepts: {unknown}")
 
-    # one concept at a time, so that only its hourly aggregate is kept
-    tables = {name: DERIVED[name](src, **kwargs) if name in DERIVED else _load(src, name) for name in names}
+    # one concept at a time, so that only its aggregate per time bin is kept
+    tables = {name: DERIVED[name](src, interval, **kwargs) if name in DERIVED else _load(src, name, interval) for name in names}
 
     res = tables[names[0]]
     for name in names[1:]:
         on = [col for col in ("stay_id", "time") if col in res.columns and col in tables[name].columns]
         res = res.join(tables[name], on=on, how="full", coalesce=True)
     keys = [col for col in ("stay_id", "time") if col in res.columns]
-    return res.sort(keys).select(*keys, *names).to_pandas()
+    res = res.sort(keys).select(*keys, *names)
+    if "time" in res.columns:
+        res = res.with_columns(_hours(pl.col("time"), interval))
+    return res.to_pandas()

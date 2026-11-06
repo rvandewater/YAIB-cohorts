@@ -1,8 +1,8 @@
-# Configuration of the WeavEHR backend (Python/src/weavehr.py), the counterpart of ricu-extensions/.
+# Configuration of the concepts loaded from WeavEHR (Python/src/weavehr.py), the counterpart of ricu-extensions/.
 #
 # concepts: YAIB concept name -> WeavEHR concept (or a list whose rows are pooled). Value ranges (min/max)
-#   and the hourly aggregation (default: median) are those of the ricu concept dictionary that the cohorts
-#   were defined with.
+#   and the aggregation per time bin (default: median) are those of the ricu concept dictionary that the
+#   cohorts were defined with.
 #   static: true marks per-stay concepts (ricu target id_tbl); values: maps text values to categories.
 #   sources: settings for a dataset, e.g., another WeavEHR concept; cumulative: values are running totals,
 #   each record counts its increase (hirid_urine); ratio_to: values are counts, taken relative to that concept
