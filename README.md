@@ -2,7 +2,7 @@
 # Generating Patient cohorts for 🧪 _Yet Another ICU Benchmark_
 
 
-This repo uses the `ricu` R package to derive patient cohorts for prediction tasks from the following intensive care databases: 
+This repo derives patient cohorts for prediction tasks from the following intensive care databases, with the `ricu` R package (R) or with [WeavEHR](https://github.com/aidh-ms/WeavEHR) (Python): 
 | **Dataset**                 | [MIMIC-III](https://physionet.org/content/mimiciii/) / [IV](https://physionet.org/content/mimiciv/) | [eICU-CRD](https://physionet.org/content/eicu-crd/) | [HiRID](https://physionet.org/content/hirid/1.1.1/) | [AUMCdb](https://doi.org/10.17026/dans-22u-f8vd) |
 |-------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------------|--------------------------------------------------|
 | **Admissions**              | 40k / 73k                                                                                           | 200k                                                | 33k                                                 | 23k                                              |
@@ -60,13 +60,11 @@ Run the following commands to clone this repo:
 git clone https://github.com/rvandewater/YAIB-cohorts.git
 cd YAIB-cohorts
 ```
-Once you have cloned the repo, all cohorts can be created directly from within R or via an interface from Python. Instructions for each can be found at: 
+Once you have cloned the repo, all cohorts can be created from within R with `ricu`, or from Python with WeavEHR (MIMIC-IV, eICU, HiRID, AmsterdamUMCdb). Instructions for each can be found at: 
 
 - R: [README.md](R/README.md)
 - Python: [README.md](Python/README.md)  
-New: We also provide a [Docker image](https://github.com/rvandewater/YAIB-cohorts/tree/main/docker) to simplify things.
-
-From Python, the cohorts can alternatively be extracted with [WeavEHR](https://github.com/aidh-ms/WeavEHR) instead of `ricu` (MIMIC-IV, eICU, HiRID, AmsterdamUMCdb), see the [Python README](Python/README.md).
+New: We also provide a [Docker image](https://github.com/rvandewater/YAIB-cohorts/tree/main/docker) for the R route to simplify things.
 
 Note: due to some recent bug fixes in ricu, the extracted cohorts might differ marginally from those published in the benchmarking paper.
 

@@ -1,15 +1,17 @@
-name: yaib-cohorts2
+name: yaib-cohorts
 channels:
-  - defaults
-  - r
+  - conda-forge
 dependencies:
-  - r
-  - python=3.10
+  - python=3.13
   - notebook
   - pandas
   - numpy
+  - polars
   - pyyaml
   - pyarrow
   - scikit-learn
+  - pip
   - pip:
-    - rpy2
+    # the WeavEHR version the cohorts were checked against; Python/src/weavehr.py and weavehr_build.py
+    # use WeavEHR's project layout and configuration API, which may still change before WeavEHR 1.0
+    - weavehr @ git+https://github.com/aidh-ms/WeavEHR.git@2fcccb6bf5ca66e559fef5491dc795dd07cdcdfd

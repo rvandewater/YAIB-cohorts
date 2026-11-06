@@ -111,14 +111,14 @@ def make_prevalence_calculator(var: str) -> Callable:
     """Calculate the prevalence of a condition by hospital (e.g., sepsis)
 
     Factory Args:
-        var: name of the ricu concept
+        var: name of the concept
 
     Factory Returns:
         callable prevalence calculator
     
     Args:
         List with two elements: 
-            - data for the ricu concept
+            - data for the concept
             - hospital ids for each patient
 
     Returns:

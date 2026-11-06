@@ -11,8 +11,8 @@ from src.steps import (
     AggStep, FilterStep, TransformStep, CustomStep, RenameStep,
     Pipeline, CombineStep
 )
-from src.backend import stay_windows
-from src.ricu_utils import (
+from src.weavehr import stay_windows
+from src.cohort_utils import (
     stop_window_at, n_obs_per_row, longest_rle, 
     make_grid_mapper, make_patient_mapper, make_prevalence_calculator, make_outcome_windower
 )
@@ -127,7 +127,7 @@ def create_aki_task(args):
     print('   Select cohort\n')
     cohort = Cohort(patients)
     cohort.add_criterion(
-        [excl1, excl2, excl3, excl4, excl5, excl6, excl7, excl8] if args.src in ['eicu', 'eicu_demo', 'eicu-crd', 'eicu-demo'] else
+        [excl1, excl2, excl3, excl4, excl5, excl6, excl7, excl8] if args.src in ['eicu-crd', 'eicu-demo'] else
         [excl1, excl2, excl3, excl4, excl5, excl7, excl8] 
     )
     print(cohort.criteria)
@@ -164,8 +164,8 @@ def create_aki_task(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src', default='mimic_demo', help='name of datasource',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv', 'mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo'])
+    parser.add_argument('--src', default='mimic-iv-demo', help='name of the WeavEHR dataset',
+                        choices=['mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo', 'hirid', 'aumc'])
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_aki_task(args)

@@ -3,7 +3,7 @@ from typing import Any, List, Callable, Type
 
 import pandas as pd
 
-from .backend import load_concepts
+from .weavehr import load_concepts
 
 
 class Step():

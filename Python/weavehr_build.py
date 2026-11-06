@@ -1,4 +1,4 @@
-"""Build the WeavEHR project read by the `weavehr` backend: WeavEHR's extraction and concept steps for one
+"""Build the WeavEHR project read by src/weavehr.py: WeavEHR's extraction and concept steps for one
 dataset, written to `weavehr_project_path` in config.yaml. Requires WeavEHR (Python >= 3.13).
 """
 import argparse

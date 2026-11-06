@@ -11,8 +11,8 @@ from src.steps import (
     AggStep, FilterStep, TransformStep, CustomStep, DropStep, RenameStep,
     Pipeline
 )
-from src.backend import stay_windows, hours
-from src.ricu_utils import (
+from src.weavehr import stay_windows
+from src.cohort_utils import (
     stop_window_at, make_grid_mapper, make_patient_mapper,
     n_obs_per_row, longest_rle
 )
@@ -122,8 +122,8 @@ def create_los_task(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src', default='mimic_demo', help='name of datasource',
-                        choices=['aumc', 'eicu', 'eicu_demo', 'hirid', 'mimic', 'mimic_demo', 'miiv', 'mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo'])
+    parser.add_argument('--src', default='mimic-iv-demo', help='name of the WeavEHR dataset',
+                        choices=['mimic-iv', 'mimic-iv-demo', 'eicu-crd', 'eicu-demo', 'hirid', 'aumc'])
     args = parser.parse_known_args()[0]
 
     (outc, dyn, sta), attrition = create_los_task(args)

@@ -1,7 +1,7 @@
-"""WeavEHR backend: replaces the ricu functions used by the cohort scripts.
+"""ICU stays and clinical concepts for the cohort scripts, loaded from WeavEHR.
 
-Reads a WeavEHR project built with `weavehr_build.py` and returns the tables that `ricu::stay_windows()`
-and `ricu::load_concepts()` return at an hourly interval: one row per ICU stay (`stay_id`) and hour since
+Reads a WeavEHR project built with `weavehr_build.py` and returns tables in the form of those returned by
+`ricu::stay_windows()` and `ricu::load_concepts()` at an hourly interval: one row per ICU stay (`stay_id`) and hour since
 ICU admission (`time`, floored), or one row per stay for static concepts. ICU stays without a discharge
 time are left out (as ricu does for HiRID patients without observations).
 
